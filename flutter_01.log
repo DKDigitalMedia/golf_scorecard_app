@@ -1,0 +1,78 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter assemble --no-version-check --output=/Users/dave/Library/Developer/Xcode/DerivedData/Runner-cbyldnhhnialijebiqeeulbipcdv/Build/Products/Debug-iphonesimulator/ -dTargetPlatform=ios -dTargetFile=/Users/dave/Documents/golf_scorecard/lib/main.dart -dBuildMode=debug -dConfiguration=Debug -dIosArchs=arm64 -dSdkRoot=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -dSplitDebugInfo= -dTreeShakeIcons=false -dTrackWidgetCreation=true -dDartObfuscation=false -dAction=build -dFrontendServerStarterPath= --ExtraGenSnapshotOptions= --DartDefines=RkxVVFRFUl9WRVJTSU9OPTMuMzguOQ==,RkxVVFRFUl9DSEFOTkVMPXN0YWJsZQ==,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9mbHV0dGVyL2ZsdXR0ZXIuZ2l0,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049NjczMjNkZTI4NQ==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049NTg3YzE4Zjg3Mw==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMC44 --ExtraFrontEndOptions= -dSrcRoot=/Users/dave/Documents/golf_scorecard/ios -dTargetDeviceOSVersion=26.2 -dCodesignIdentity=- debug_ios_bundle_flutter_assets
+
+## exception
+
+PathNotFoundException: PathNotFoundException: Cannot open file, path = '/Users/dave/Documents/golf_scorecard/.dart_tool/hooks_runner/objective_c/9f22e6a04e7d57ddc53af6565b2f38d4/stdout.txt' (OS Error: No such file or directory, errno = 2)
+
+```
+#0      _checkForErrorResponse (dart:io/common.dart:58:9)
+#1      _File.open.<anonymous closure> (dart:io/file_impl.dart:442:7)
+#2      _rootRunUnary (dart:async/zone.dart:1538:47)
+#3      _CustomZone.runUnary (dart:async/zone.dart:1429:19)
+<asynchronous suspension>
+#4      _File.writeAsBytes.<anonymous closure> (dart:io/file_impl.dart:732:34)
+<asynchronous suspension>
+#5      ForwardingFile.writeAsString (package:file/src/forwarding/forwarding_file.dart:136:12)
+<asynchronous suspension>
+#6      ErrorHandlingFile.writeAsString.<anonymous closure> (package:flutter_tools/src/base/error_handling_io.dart:238:9)
+<asynchronous suspension>
+#7      _run (package:flutter_tools/src/base/error_handling_io.dart:514:12)
+<asynchronous suspension>
+#8      NativeAssetsBuildRunner._createFileStreamingLogger.<anonymous closure> (package:hooks_runner/src/build_runner/build_runner.dart:686:11)
+<asynchronous suspension>
+```
+
+## flutter doctor
+
+```
+[!] Flutter (Channel stable, 3.38.9, on macOS 26.2 25C56 darwin-arm64, locale en-US) [1,169ms]
+    • Flutter version 3.38.9 on channel stable at /opt/homebrew/share/flutter
+    ! The flutter binary is not on your path. Consider adding /opt/homebrew/share/flutter/bin to your path.
+    ! The dart binary is not on your path. Consider adding /opt/homebrew/share/flutter/bin to your path.
+    • Upstream repository https://github.com/flutter/flutter.git
+    • Framework revision 67323de285 (6 days ago), 2026-01-28 13:43:12 -0800
+    • Engine revision 587c18f873
+    • Dart version 3.10.8
+    • DevTools version 2.51.1
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, omit-legacy-version-file, enable-lldb-debugging
+    • If those were intentional, you can disregard the above warnings; however it is recommended to use "git" directly to perform update checks and upgrades.
+
+[✓] Android toolchain - develop for Android devices (Android SDK version 34.0.0) [4.9s]
+    • Android SDK at /Users/dave/Library/Android/sdk
+    • Emulator version 36.3.10.0 (build_id 14472402) (CL:N/A)
+    • Platform android-36, build-tools 34.0.0
+    • ANDROID_HOME = /Users/dave/Library/Android/sdk
+    • ANDROID_SDK_ROOT = /Users/dave/Library/Android/sdk
+    • Java binary at: /usr/bin/java
+      This JDK was found in the system PATH.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    • Java version OpenJDK Runtime Environment Zulu23.30+13-CA (build 23.0.1+11)
+    • All Android licenses accepted.
+
+[!] Xcode - develop for iOS and macOS (Xcode 26.2) [1,823ms]
+    • Xcode at /Applications/Xcode.app/Contents/Developer
+    • Build 17C52
+    ✗ CocoaPods not installed.
+        CocoaPods is a package manager for iOS or macOS platform code.
+        Without CocoaPods, plugins will not work on iOS or macOS.
+        For more info, see https://flutter.dev/to/platform-plugins
+      For installation instructions, see https://guides.cocoapods.org/using/getting-started.html#installation
+
+[✓] Chrome - develop for the web [6ms]
+    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+
+[✓] Connected device (3 available) [7.2s]
+    • iPhone 17 (mobile) • 29A2DE01-03D0-4083-A2EC-61A45899F018 • ios            • com.apple.CoreSimulator.SimRuntime.iOS-26-2 (simulator)
+    • macOS (desktop)    • macos                                • darwin-arm64   • macOS 26.2 25C56 darwin-arm64
+    • Chrome (web)       • chrome                               • web-javascript • Google Chrome 144.0.7559.110
+
+[✓] Network resources [5.3s]
+    • All expected network resources are available.
+
+! Doctor found issues in 2 categories.
+```

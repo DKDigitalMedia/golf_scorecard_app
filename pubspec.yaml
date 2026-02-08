@@ -1,0 +1,33 @@
+
+# **pubspec.yaml (latest)**
+
+
+name: golf_scorecard_app
+description: A Flutter app to track golf rounds and courses.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.3.0
+  drift: ^2.10.0
+  drift_flutter: ^0.2.8
+  path_provider: ^2.0.15
+  path: ^1.8.3
+  cupertino_icons: ^1.0.5
+  share_plus: ^10.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  drift_dev: ^2.10.0
+  build_runner: ^2.4.0
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+

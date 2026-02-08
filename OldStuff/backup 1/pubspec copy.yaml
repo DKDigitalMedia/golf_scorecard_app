@@ -1,0 +1,25 @@
+name: golf_scorecard_app
+description: Golf scorecard app
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.3.6
+  drift: ^2.10.0
+  drift_flutter: ^0.2.8
+  sqlite3_flutter_libs: ^0.5.40
+  path_provider: ^2.0.14
+  intl: ^0.18.1
+  fl_chart: ^0.60.0
+  cupertino_icons: ^1.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  drift_dev: ^2.10.0
+  build_runner: ^2.4.6

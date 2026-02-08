@@ -1,0 +1,37 @@
+cat > .gitignore <<'EOF'
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Platform / tool outputs
+android/.gradle/
+android/local.properties
+android/**/build/
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Runner.xcworkspace/
+ios/DerivedData/
+
+# Generated code (commonly ignored)
+**/*.g.dart
+
+# Secrets / keys
+*.keystore
+*.jks
+*.p12
+*.pem
+.env
+EOF
