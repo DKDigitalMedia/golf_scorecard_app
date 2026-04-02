@@ -62,14 +62,23 @@ class _CourseHolesEditorScreenState
   }
 
   Future<void> _loadAll() async {
+    final int? previouslySelectedTeeId = _selectedTee?.id;
+
     final db = ref.read(databaseProvider);
 
     final tees = await db.getTeeBoxesForCourse(widget.courseId);
     final ch = await db.getCourseHolesForCourse(widget.courseId);
 
+    final TeeBox? nextSelectedTee = tees.isEmpty
+        ? null
+        : tees.firstWhere(
+            (t) => t.id == previouslySelectedTeeId,
+            orElse: () => tees.first,
+          );
+
     setState(() {
       _teeBoxes = tees;
-      _selectedTee = tees.isNotEmpty ? tees.first : null;
+      _selectedTee = nextSelectedTee;
       _courseHoles = ch;
     });
 
@@ -85,12 +94,14 @@ class _CourseHolesEditorScreenState
   void _applyCourseHolesToUI() {
     for (int i = 0; i < 18; i++) {
       final holeNum = i + 1;
-      final existing =
-          _courseHoles.where((h) => h.holeNumber == holeNum).toList();
+      final existing = _courseHoles.where((h) => h.holeNumber == holeNum);
+      final CourseHole? latest = existing.isEmpty
+          ? null
+          : existing.reduce((a, b) => a.id > b.id ? a : b);
 
-      if (existing.isNotEmpty) {
-        _pars[i] = existing.first.par;
-        final si = existing.first.strokeIndex;
+      if (latest != null) {
+        _pars[i] = latest.par;
+        final si = latest.strokeIndex;
         _strokeIndexes[i] = (si == null || si == 0) ? null : si;
       } else {
         _pars[i] = 4;
@@ -121,8 +132,11 @@ class _CourseHolesEditorScreenState
 
     for (int i = 0; i < 18; i++) {
       final holeNum = i + 1;
-      final existing = _teeHoles.where((h) => h.holeNumber == holeNum).toList();
-      final y = existing.isNotEmpty ? existing.first.yardage : null;
+      final existing = _teeHoles.where((h) => h.holeNumber == holeNum);
+      final TeeBoxHole? latest = existing.isEmpty
+          ? null
+          : existing.reduce((a, b) => a.id > b.id ? a : b);
+      final y = latest?.yardage;
       _yardages[i] = (y == null || y == 0) ? null : y;
 
       final yardText = _yardages[i]?.toString() ?? '';

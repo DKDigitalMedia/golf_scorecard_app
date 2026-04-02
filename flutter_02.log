@@ -1,0 +1,90 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter create .
+
+## exception
+
+FileSystemException: FileSystemException: writeFrom failed, path = '/Users/dave/Documents/golf_scorecard/android/gradle/wrapper/gradle-wrapper.jar' (OS Error: Operation timed out, errno = 60)
+
+```
+#0      _RandomAccessFile.writeFromSync (dart:io/file_impl.dart:999:7)
+#1      _File.writeAsBytesSync (dart:io/file_impl.dart:746:14)
+#2      ForwardingFile.writeAsBytesSync (package:file/src/forwarding/forwarding_file.dart:127:16)
+#3      ErrorHandlingFile.writeAsBytesSync.<anonymous closure> (package:flutter_tools/src/base/error_handling_io.dart:222:22)
+#4      _runSync (package:flutter_tools/src/base/error_handling_io.dart:552:14)
+#5      ErrorHandlingFile.writeAsBytesSync (package:flutter_tools/src/base/error_handling_io.dart:221:5)
+#6      copyDirectory (package:flutter_tools/src/base/file_system.dart:155:15)
+#7      copyDirectory (package:flutter_tools/src/base/file_system.dart:161:7)
+#8      copyDirectory (package:flutter_tools/src/base/file_system.dart:161:7)
+#9      CreateBase._injectGradleWrapper (package:flutter_tools/src/commands/create_base.dart:637:5)
+#10     CreateBase.generateApp (package:flutter_tools/src/commands/create_base.dart:476:25)
+<asynchronous suspension>
+#11     CreateCommand.runCommand (package:flutter_tools/src/commands/create.dart:482:31)
+<asynchronous suspension>
+#12     FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1590:27)
+<asynchronous suspension>
+#13     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#14     CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+<asynchronous suspension>
+#15     FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:496:9)
+<asynchronous suspension>
+#16     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#17     FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:431:5)
+<asynchronous suspension>
+#18     FlutterCommandRunner.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:307:33)
+<asynchronous suspension>
+#19     run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:104:11)
+<asynchronous suspension>
+#20     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#21     main (package:flutter_tools/executable.dart:103:3)
+<asynchronous suspension>
+```
+
+## flutter doctor
+
+```
+[32m[✓][39m Flutter (Channel stable, 3.41.1, on macOS 26.3 25D125 darwin-arm64, locale en-US) [487ms]
+    [32m•[39m Flutter version 3.41.1 on channel stable at /opt/homebrew/share/flutter
+    [32m•[39m Upstream repository https://github.com/flutter/flutter.git
+    [32m•[39m Framework revision 582a0e7c55 (2 weeks ago), 2026-02-12 17:12:32 -0800
+    [32m•[39m Engine revision 3452d735bd
+    [32m•[39m Dart version 3.11.0
+    [32m•[39m DevTools version 2.54.1
+    [32m•[39m Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations,
+      enable-native-assets, omit-legacy-version-file, enable-lldb-debugging, enable-uiscene-migration
+
+[32m[✓][39m Android toolchain - develop for Android devices (Android SDK version 34.0.0) [3.5s]
+    [32m•[39m Android SDK at /Users/dave/Library/Android/sdk
+    [32m•[39m Emulator version 36.3.10.0 (build_id 14472402) (CL:N/A)
+    [32m•[39m Platform android-36, build-tools 34.0.0
+    [32m•[39m ANDROID_SDK_ROOT = /Users/dave/Library/Android/sdk
+    [32m•[39m Java binary at: /usr/bin/java
+      This JDK was found in the system PATH.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    [32m•[39m Java version OpenJDK Runtime Environment Zulu23.30+13-CA (build 23.0.1+11)
+    [32m•[39m All Android licenses accepted.
+
+[32m[✓][39m Xcode - develop for iOS and macOS (Xcode 26.2) [2.3s]
+    [32m•[39m Xcode at /Applications/Xcode.app/Contents/Developer
+    [32m•[39m Build 17C52
+    [32m•[39m CocoaPods version 1.16.2
+
+[32m[✓][39m Chrome - develop for the web [5ms]
+    [32m•[39m Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+
+[32m[✓][39m Connected device (3 available) [6.6s]
+    [32m•[39m This one (mobile) • 00008101-001D58A42630001E • ios            • iOS 26.3 23D127
+    [32m•[39m macOS (desktop)   • macos                     • darwin-arm64   • macOS 26.3 25D125 darwin-arm64
+    [32m•[39m Chrome (web)      • chrome                    • web-javascript • Google Chrome 145.0.7632.117
+
+[32m[✓][39m Network resources [344ms]
+    [32m•[39m All expected network resources are available.
+
+[32m•[39m No issues found!
+```

@@ -13,289 +13,178 @@ class SavedRoundsScreen extends ConsumerStatefulWidget {
 }
 
 class _SavedRoundsScreenState extends ConsumerState<SavedRoundsScreen> {
-  /// true = only completed, false = all (completed + in-progress)
-  bool _completedOnly = true;
+  Future<List<_SavedRoundRow>>? _future;
 
-  String _fmtDate(DateTime dt) {
-    final d = dt.toLocal();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(d.month)}/${two(d.day)}/${d.year}';
+  String _formatDate(DateTime dt) {
+    final m = dt.month;
+    final d = dt.day;
+    final y = dt.year;
+
+    var hour = dt.hour;
+    final minute = dt.minute;
+    final ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12;
+    if (hour == 0) hour = 12;
+
+    final mm = minute.toString().padLeft(2, '0');
+    return '$m/$d/$y $hour:$mm $ampm';
   }
 
-  String _vsParStr(int? vsPar) {
-    if (vsPar == null) return '-';
-    if (vsPar == 0) return 'E';
-    return vsPar > 0 ? '+$vsPar' : '$vsPar';
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
   }
 
-  Future<_RoundListRow> _buildRowData(AppDatabase db, Round r) async {
-    // Course + tee names handled outside; here we compute score / par / vs-par.
-    final holes = await db.getHolesForRoundOrdered(r.id);
+  Future<List<_SavedRoundRow>> _load() async {
+    final db = ref.read(databaseProvider);
 
-    // Only compute gross if all 18 scores exist
-    int scoreCount = 0;
-    int totalScore = 0;
-    for (final h in holes) {
-      if (h.score != null) {
-        scoreCount++;
-        totalScore += h.score!;
-      }
-    }
-    final gross = (scoreCount == 18) ? totalScore : null;
+    final all = await db.getCompletedRoundsNewestFirst();
+    final rounds = all.length > 200 ? all.take(200).toList() : all;
+    if (rounds.isEmpty) return <_SavedRoundRow>[];
 
-    // Round par comes from course holes.
-    // If your schema guarantees 18 holes exist, this should always work.
-    final courseHoles = await db.getCourseHolesForCourse(r.courseId);
+    // Resolve course + tee info (best-effort) for display.
+    final rows = await Future.wait<_SavedRoundRow>(rounds.map((r) async {
+      final course = await db.getCourse(r.courseId);
+      final tee = await db.getTeeBox(r.teeBoxId);
+      return _SavedRoundRow(round: r, course: course, tee: tee);
+    }));
 
-    int parCount = 0;
-    int totalPar = 0;
-    for (final ch in courseHoles) {
-      // expecting holeNumber 1..18
-      parCount++;
-      totalPar += ch.par;
-    }
-    final par = (parCount == 18) ? totalPar : null;
-
-    final vsPar = (gross != null && par != null) ? (gross - par) : null;
-
-    // Putts + penalties (optional)
-    int puttsTotal = 0;
-    int puttsCount = 0;
-    int penTotal = 0;
-    int penCount = 0;
-
-    for (final h in holes) {
-      if (h.putts != null) {
-        puttsTotal += h.putts!;
-        puttsCount++;
-      }
-      if (h.penalties != null) {
-        penTotal += h.penalties!;
-        penCount++;
-      }
-    }
-
-    return _RoundListRow(
-      gross: gross,
-      par: par,
-      vsPar: vsPar,
-      putts: puttsCount == 0 ? null : puttsTotal,
-      penalties: penCount == 0 ? null : penTotal,
-      holesEntered: holes.length,
-    );
+    return rows;
   }
 
-  Future<void> _confirmDelete(AppDatabase db, Round r, String titleLine) async {
+  Future<void> _deleteRound(BuildContext context, int roundId) async {
+    final db = ref.read(databaseProvider);
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete round?'),
-        content: Text(
-          'This will permanently delete the round and all hole entries:\n\n$titleLine',
-        ),
+        content: const Text(
+            'This will permanently delete the round and all hole data.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
-          ),
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Delete')),
         ],
       ),
     );
 
     if (ok != true) return;
 
-    await db.deleteRound(r.id);
+    await db.deleteRound(roundId);
 
-    if (!mounted) return;
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Round deleted.')),
+      const SnackBar(content: Text('Round deleted')),
     );
-    setState(() {}); // refresh list
+
+    setState(() {
+      _future = _load();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final db = ref.read(databaseProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Saved Rounds'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: Row(
-              children: [
-                const Text('Completed'),
-                Switch(
-                  value: _completedOnly,
-                  onChanged: (v) => setState(() => _completedOnly = v),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
-      body: FutureBuilder<List<dynamic>>(
-        future: Future.wait([
-          _completedOnly ? db.getCompletedRounds() : db.getAllRounds(),
-          db.getAllCourses(),
-          db.select(db.teeBoxTable).get(),
-        ]),
+      body: FutureBuilder<List<_SavedRoundRow>>(
+        future: _future,
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final rounds = snapshot.data![0] as List<Round>;
-          final courses = snapshot.data![1] as List<Course>;
-          final tees = snapshot.data![2] as List<TeeBox>;
-
-          final courseById = {for (final c in courses) c.id: c};
-          final teeById = {for (final t in tees) t.id: t};
-
-          if (rounds.isEmpty) {
+          if (snapshot.hasError) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  _completedOnly
-                      ? 'No completed rounds yet.\nFinish a round to see it here.'
-                      : 'No rounds yet.\nStart a round from the main menu.',
+                  'Failed to load rounds: ${snapshot.error}',
                   textAlign: TextAlign.center,
                 ),
               ),
             );
           }
 
-          // Sort newest first (defensive)
-          rounds.sort((a, b) => b.date.compareTo(a.date));
+          final rows = snapshot.data ?? <_SavedRoundRow>[];
+          if (rows.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No saved rounds yet.'),
+              ),
+            );
+          }
 
-          return ListView.builder(
-            itemCount: rounds.length,
-            itemBuilder: (context, i) {
-              final r = rounds[i];
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() {
+                _future = _load();
+              });
+              await _future;
+            },
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: rows.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, i) {
+                final row = rows[i];
 
-              final courseName =
-                  courseById[r.courseId]?.name ?? 'Unknown course';
-              final teeName = teeById[r.teeBoxId]?.name ?? 'Unknown tee';
-              final dateStr = _fmtDate(r.date);
+                final title = row.course?.name ?? 'Course';
+                final teeName = row.tee?.name;
 
-              final statusChip = r.completed
-                  ? const Chip(label: Text('Completed'))
-                  : const Chip(label: Text('In progress'));
+                final dateStr = _formatDate(row.round.date);
 
-              final titleLine = '$courseName • $teeName • $dateStr';
-
-              return Card(
-                child: InkWell(
+                return ListTile(
+                  title: Text(title),
+                  subtitle: Text(
+                    teeName == null ? dateStr : '$dateStr • $teeName',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'delete') {
+                        await _deleteRound(context, row.round.id);
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ],
+                  ),
                   onTap: () {
-                    Navigator.push(
-                      context,
+                    Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => RoundSummaryScreen(roundId: r.id),
+                        builder: (_) =>
+                            RoundSummaryScreen(roundId: row.round.id),
                       ),
                     );
                   },
-                  onLongPress: () => _confirmDelete(db, r, titleLine),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                courseName,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            statusChip,
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$teeName • $dateStr',
-                          style: TextStyle(color: Colors.grey[700]),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Totals line (gross, par, vs par, putts, pens)
-                        FutureBuilder<_RoundListRow>(
-                          future: _buildRowData(db, r),
-                          builder: (context, snap) {
-                            if (!snap.hasData) {
-                              return const LinearProgressIndicator(
-                                  minHeight: 2);
-                            }
-                            final row = snap.data!;
-
-                            final grossStr = row.gross?.toString() ?? '-';
-                            final parStr = row.par?.toString() ?? '-';
-                            final vsParStr = _vsParStr(row.vsPar);
-                            final puttsStr = row.putts?.toString() ?? '-';
-                            final pensStr = row.penalties?.toString() ?? '-';
-
-                            return Wrap(
-                              spacing: 12,
-                              runSpacing: 6,
-                              children: [
-                                _pill('Score', grossStr),
-                                _pill('Par', parStr),
-                                _pill('Vs', vsParStr),
-                                _pill('Putts', puttsStr),
-                                _pill('Pen', pensStr),
-                                _pill('Holes', '${row.holesEntered}/18'),
-                              ],
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),
     );
   }
-
-  Widget _pill(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text('$label: $value'),
-    );
-  }
 }
 
-class _RoundListRow {
-  final int? gross;
-  final int? par;
-  final int? vsPar;
-  final int? putts;
-  final int? penalties;
-  final int holesEntered;
+class _SavedRoundRow {
+  final Round round;
+  final Course? course;
+  final TeeBox? tee;
 
-  _RoundListRow({
-    required this.gross,
-    required this.par,
-    required this.vsPar,
-    required this.putts,
-    required this.penalties,
-    required this.holesEntered,
+  const _SavedRoundRow({
+    required this.round,
+    required this.course,
+    required this.tee,
   });
 }

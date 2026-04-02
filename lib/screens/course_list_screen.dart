@@ -17,7 +17,10 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
   }
 
   Future<void> _confirmDeleteCourse(
-      BuildContext context, int courseId, String courseName) async {
+    BuildContext context,
+    int courseId,
+    String courseName,
+  ) async {
     final db = ref.read(databaseProvider);
 
     final ok = await showDialog<bool>(
@@ -30,11 +33,13 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -47,12 +52,13 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
     if (!deleted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Cannot delete: course has tee boxes or rounds.')),
+          content: Text('Cannot delete: course has tee boxes or rounds.'),
+        ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Course deleted.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Course deleted.')));
       await _refresh();
     }
   }
@@ -87,7 +93,8 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
           final courses = snapshot.data!;
           if (courses.isEmpty) {
             return const Center(
-                child: Text('No courses yet. Tap + to add one.'));
+              child: Text('No courses yet. Tap + to add one.'),
+            );
           }
 
           return ListView.separated(
@@ -103,7 +110,8 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => CourseEditScreen(courseId: c.id)),
+                      builder: (_) => CourseEditScreen(courseId: c.id),
+                    ),
                   );
                   await _refresh();
                 },

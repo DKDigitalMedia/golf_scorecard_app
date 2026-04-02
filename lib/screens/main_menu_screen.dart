@@ -1,13 +1,14 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'dart:io';
-
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../main.dart' show routeObserver;
-
 import '../providers/database_provider.dart';
 import 'course_list_screen.dart';
 import 'dashboard_screen.dart';
@@ -15,6 +16,7 @@ import 'hole_entry_screen.dart';
 import 'round_summary_screen.dart';
 import 'saved_rounds_screen.dart';
 import 'start_round_screen.dart';
+import 'about_screen.dart';
 
 // ===========================
 // Resume info (TOP-LEVEL CLASS)
@@ -50,8 +52,9 @@ class _ResumeInfo {
   }
 }
 
-final resumeInfoProvider =
-    FutureProvider.autoDispose<_ResumeInfo?>((ref) async {
+final resumeInfoProvider = FutureProvider.autoDispose<_ResumeInfo?>((
+  ref,
+) async {
   final db = ref.read(databaseProvider);
   final active = await db.getInProgressRounds();
   if (active.isEmpty) return null;
@@ -76,8 +79,9 @@ final resumeInfoProvider =
   final teeName = tees.firstWhere((t) => t.id == r.teeBoxId).name;
 
   final lastHole = await db.getLatestHoleNumberForRound(r.id);
-  final resumeHole =
-      lastHole == null ? 1 : (lastHole >= 18 ? 18 : lastHole + 1);
+  final resumeHole = lastHole == null
+      ? 1
+      : (lastHole >= 18 ? 18 : lastHole + 1);
 
   return _ResumeInfo(
     roundId: r.id,
@@ -107,105 +111,122 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
 
   String _fmtToPar(int v) => v == 0 ? 'E' : (v > 0 ? '+$v' : '$v');
 
-  Future<void> _showBackupRestoreSheet() async {
-    if (!mounted) return;
+  Future<void> _showBackupRestoreSheet(
+    BuildContext pageContext,
+    WidgetRef ref,
+  ) async {
+    if (!pageContext.mounted) return;
+
     await showModalBottomSheet<void>(
-      context: context,
+      context: pageContext,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Backup & Restore',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 10),
-                ListTile(
-                  leading: const Icon(Icons.upload_file),
-                  title: const Text('Export Backup'),
-                  subtitle: const Text(
-                      'Share your local database file (AirDrop, Files, Drive, etc.)'),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    await _exportDatabaseBackup();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.download),
-                  title: const Text('Restore Backup'),
-                  subtitle: const Text(
-                      'Coming soon (requires a file picker for iOS + Android).'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Restore is coming soon.')),
-                    );
-                  },
-                ),
-              ],
-            ),
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.5,
+            minChildSize: 0.35,
+            maxChildSize: 0.9,
+            builder: (sheetContext, scrollController) {
+              return ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                children: [
+                  const Text(
+                    'Backup & Restore',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 10),
+                  ListTile(
+                    leading: const Icon(Icons.upload_file),
+                    title: const Text('Export Backup'),
+                    subtitle: const Text(
+                      'Share your local database file (AirDrop, Files, Drive, etc.)',
+                    ),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _exportDatabaseBackup(pageContext);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.table_chart_outlined),
+                    title: const Text('Export CSV (Excel)'),
+                    subtitle: const Text(
+                      'All rounds, one row per hole (easy to analyze in Excel).',
+                    ),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _exportAllRoundsCsv();
+                    },
+                  ),
+                  if (kDebugMode) ...[
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.science_outlined),
+                      title: const Text('Add Sample Rounds (Debug)'),
+                      subtitle: const Text(
+                        'Seeds 3 completed rounds with hole-by-hole stats.',
+                      ),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await _seedSampleRounds();
+                      },
+                    ),
+                  ],
+                  ListTile(
+                    leading: const Icon(Icons.download),
+                    title: const Text('Restore Backup'),
+                    subtitle: const Text(
+                      'Pick a backup file and replace the local database.',
+                    ),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _restoreDatabaseBackup(pageContext, ref);
+                    },
+                  ),
+                ],
+              );
+            },
           ),
         );
       },
     );
   }
 
-  Future<void> _exportDatabaseBackup() async {
+  Future<void> _exportDatabaseBackup(BuildContext context) async {
     try {
-      // Drift usually stores the sqlite file in the app documents directory.
       final docsDir = await getApplicationDocumentsDirectory();
-      final files = docsDir.listSync().whereType<File>().where((f) {
-        final name = f.path.toLowerCase();
-        return name.endsWith('.sqlite') ||
-            name.endsWith('.db') ||
-            name.endsWith('.sqlite3');
-      }).toList();
+      final dbFile = File('${docsDir.path}/golf_scorecard.sqlite');
 
-      if (files.isEmpty) {
-        if (!mounted) return;
+      if (!await dbFile.exists()) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No database file found to export.')),
         );
         return;
       }
 
-      // Prefer a file that looks like our app DB, otherwise pick the newest.
-      files
-          .sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-      File dbFile = files.first;
-      for (final f in files) {
-        final n = f.path.toLowerCase();
-        if (n.contains('golf') || n.contains('score')) {
-          dbFile = f;
-          break;
-        }
-      }
-
       final tmpDir = await getTemporaryDirectory();
-      final ts =
-          DateTime.now().toLocal().toIso8601String().replaceAll(':', '-');
-      final baseName = dbFile.uri.pathSegments.isNotEmpty
-          ? dbFile.uri.pathSegments.last
-          : 'golf_scorecard.sqlite';
-
-      final outMain = File('${tmpDir.path}/backup_${ts}_$baseName');
+      final now = DateTime.now().toLocal();
+      String two(int n) => n.toString().padLeft(2, '0');
+      final friendlyDate =
+          '${two(now.month)}-${two(now.day)}-${now.year}_${two(now.hour)}-${two(now.minute)}';
+      final outMain = File(
+        '${tmpDir.path}/golf_scorecard_backup_$friendlyDate.sqlite',
+      );
       await outMain.writeAsBytes(await dbFile.readAsBytes(), flush: true);
 
-      // Also include WAL/SHM if they exist (common when SQLite uses WAL).
       final extras = <File>[];
       final wal = File('${dbFile.path}-wal');
       final shm = File('${dbFile.path}-shm');
+
       if (await wal.exists()) {
         final outWal = File('${outMain.path}-wal');
         await outWal.writeAsBytes(await wal.readAsBytes(), flush: true);
         extras.add(outWal);
       }
+
       if (await shm.exists()) {
         final outShm = File('${outMain.path}-shm');
         await outShm.writeAsBytes(await shm.readAsBytes(), flush: true);
@@ -214,10 +235,9 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
 
       final shareFiles = <XFile>[
         XFile(outMain.path),
-        ...extras.map((f) => XFile(f.path))
+        ...extras.map((f) => XFile(f.path)),
       ];
 
-      // Compute anchor rect for iPad share sheet
       final box = context.findRenderObject() as RenderBox?;
       final origin = box == null
           ? const Rect.fromLTWH(0, 0, 1, 1)
@@ -229,10 +249,135 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
         sharePositionOrigin: origin,
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    }
+  }
+
+  Future<void> _restoreDatabaseBackup(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        type: FileType.any,
+        withData: true,
       );
+      if (result == null || result.files.isEmpty) return;
+
+      final picked = result.files.single;
+      final pickedPath = picked.path;
+      final pickedName = picked.name;
+
+      final lower = pickedName.toLowerCase();
+      final isAllowed =
+          lower.endsWith('.sqlite') ||
+          lower.endsWith('.db') ||
+          lower.endsWith('.sqlite3');
+
+      if (!isAllowed) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Please choose a .sqlite, .db, or .sqlite3 backup file.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      Uint8List? pickedBytes = picked.bytes;
+      if (pickedBytes == null && pickedPath != null && pickedPath.isNotEmpty) {
+        final pickedFile = File(pickedPath);
+        if (await pickedFile.exists()) {
+          pickedBytes = await pickedFile.readAsBytes();
+        }
+      }
+
+      if (pickedBytes == null) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not read the selected backup file.'),
+          ),
+        );
+        return;
+      }
+
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Restore Backup?'),
+          content: const Text(
+            'This will overwrite your current data. This cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Restore'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Restoring: $pickedName')));
+
+      final docsDir = await getApplicationDocumentsDirectory();
+      final destMain = File('${docsDir.path}/golf_scorecard.sqlite');
+      final destWal = File('${destMain.path}-wal');
+      final destShm = File('${destMain.path}-shm');
+
+      final srcWal = (pickedPath == null || pickedPath.isEmpty)
+          ? null
+          : File('$pickedPath-wal');
+      final srcShm = (pickedPath == null || pickedPath.isEmpty)
+          ? null
+          : File('$pickedPath-shm');
+
+      final db = ref.read(databaseProvider);
+      await db.close();
+
+      if (await destWal.exists()) await destWal.delete();
+      if (await destShm.exists()) await destShm.delete();
+      if (await destMain.exists()) await destMain.delete();
+
+      await destMain.writeAsBytes(pickedBytes, flush: true);
+
+      if (srcWal != null && await srcWal.exists()) {
+        await srcWal.copy(destWal.path);
+      }
+      if (srcShm != null && await srcShm.exists()) {
+        await srcShm.copy(destShm.path);
+      }
+
+      ref.invalidate(databaseProvider);
+      ref.invalidate(resumeInfoProvider);
+
+      if (mounted) {
+        setState(() {});
+      }
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backup restored successfully.')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Restore failed: $e')));
     }
   }
 
@@ -243,8 +388,9 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
 
     if (active.length == 1) {
       final lastHole = await db.getLatestHoleNumberForRound(active.first.id);
-      final resumeHole =
-          lastHole == null ? 1 : (lastHole >= 18 ? 18 : lastHole + 1);
+      final resumeHole = lastHole == null
+          ? 1
+          : (lastHole >= 18 ? 18 : lastHole + 1);
 
       if (!context.mounted) return;
       Navigator.push(
@@ -277,7 +423,8 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
                 (r) => ListTile(
                   title: Text(courseById[r.courseId]!.name),
                   subtitle: Text(
-                      '${teeById[r.teeBoxId]!.name} • ${_fmtDate(r.date)}'),
+                    '${teeById[r.teeBoxId]!.name} • ${_fmtDate(r.date)}',
+                  ),
                   onTap: () => Navigator.pop(ctx, r.id),
                 ),
               )
@@ -289,16 +436,15 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
     if (pickedId == null || !context.mounted) return;
 
     final lastHole = await db.getLatestHoleNumberForRound(pickedId);
-    final resumeHole =
-        lastHole == null ? 1 : (lastHole >= 18 ? 18 : lastHole + 1);
+    final resumeHole = lastHole == null
+        ? 1
+        : (lastHole >= 18 ? 18 : lastHole + 1);
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => HoleEntryScreen(
-          roundId: pickedId,
-          initialHole: resumeHole,
-        ),
+        builder: (_) =>
+            HoleEntryScreen(roundId: pickedId, initialHole: resumeHole),
       ),
     );
   }
@@ -382,313 +528,710 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
 
   @override
   void didPopNext() {
-    // We just returned to this screen; re-check for in-progress rounds.
     ref.invalidate(resumeInfoProvider);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Golf Scorecard')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-          // ===========================
-          // PLAY
-          // ===========================
-          Builder(builder: (context) {
-            final scheme = Theme.of(context).colorScheme;
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: scheme.outlineVariant),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Play',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.add),
-                      label: const Text('Start New Round'),
-                      onPressed: () {
-                        Navigator.push(
+      appBar: AppBar(title: Text('Yet Another Golf Scorecard')),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: [
+            // ===========================
+            // PLAY
+            // ===========================
+            Builder(
+              builder: (context) {
+                final scheme = Theme.of(context).colorScheme;
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Play',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.add),
+                          label: const Text('Start New Round'),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const StartRoundScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ref
+                          .watch(resumeInfoProvider)
+                          .when(
+                            data: (info) {
+                              if (info == null) return const SizedBox.shrink();
+
+                              return Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 420,
+                                  ),
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.green.withOpacity(
+                                        0.08,
+                                      ),
+                                      foregroundColor: Colors.green[800],
+                                      side: BorderSide(
+                                        color: Colors.green.shade400,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                        horizontal: 12,
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.play_arrow),
+                                    onPressed: () => _resumeRound(context, ref),
+                                    label: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Resume Round',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          info.titleLine(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        Text(
+                                          info.subtitleLine(_fmtDate),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            loading: () => const SizedBox.shrink(),
+                            error: (e, st) => const SizedBox.shrink(),
+                          ),
+                      const SizedBox(height: 14),
+                      FutureBuilder<_QuickStart?>(
+                        future: _loadQuickStart(ref),
+                        builder: (context, snap) {
+                          final qs = snap.data;
+                          if (qs == null) return const SizedBox.shrink();
+
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: scheme.outlineVariant),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Quick Start',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    icon: const Icon(Icons.flash_on_outlined),
+                                    label: Text(qs.label),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => StartRoundScreen(
+                                            initialCourseId: qs.courseId,
+                                            initialTeeBoxId: qs.teeBoxId,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // ===========================
+            // REVIEW
+            // ===========================
+            Builder(
+              builder: (context) {
+                final scheme = Theme.of(context).colorScheme;
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Review',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _ActionTile(
+                        icon: Icons.dashboard_outlined,
+                        title: 'Dashboard',
+                        subtitle: 'Trends and averages across rounds',
+                        onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const StartRoundScreen()),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ref.watch(resumeInfoProvider).when(
-                        data: (info) {
-                          if (info == null) return const SizedBox.shrink();
+                            builder: (_) => const DashboardScreen(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _ActionTile(
+                        icon: Icons.history,
+                        title: 'Saved Rounds',
+                        subtitle: 'Browse completed rounds',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SavedRoundsScreen(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      FutureBuilder<List<_RecentRoundRow>>(
+                        future: _loadRecentCompleted(ref),
+                        builder: (context, snap) {
+                          final rows = snap.data ?? const [];
+                          if (rows.isEmpty) return const SizedBox.shrink();
 
                           return Center(
                             child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 420),
-                              child: OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  backgroundColor:
-                                      Colors.green.withOpacity(0.08),
-                                  foregroundColor: Colors.green[800],
-                                  side:
-                                      BorderSide(color: Colors.green.shade400),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                              constraints: const BoxConstraints(maxWidth: 500),
+                              child: Card(
+                                elevation: 0,
+                                margin: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(
+                                    color: scheme.outlineVariant,
                                   ),
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 14, horizontal: 12),
                                 ),
-                                icon: const Icon(Icons.play_arrow),
-                                onPressed: () => _resumeRound(context, ref),
-                                label: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: ExpansionTile(
+                                  maintainState: true,
+                                  tilePadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  childrenPadding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    0,
+                                    16,
+                                    12,
+                                  ),
+                                  title: Text(
+                                    '\u00A0\u00A0\u00A0Recent Rounds',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      fontStyle: FontStyle.italic,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface.withOpacity(0.6),
+                                    ),
+                                  ),
                                   children: [
-                                    const Text('Resume Round',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w900)),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      info.titleLine(),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                    Text(
-                                      info.subtitleLine(_fmtDate),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
+                                    for (final r in rows) ...[
+                                      ListTile(
+                                        contentPadding: EdgeInsets.zero,
+                                        title: Text(
+                                          r.title,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        subtitle: Text(r.subtitle),
+                                        trailing: _ScorePill(
+                                          score: r.score,
+                                          toPar: r.toPar,
+                                          fmtToPar: _fmtToPar,
+                                        ),
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  RoundSummaryScreen(
+                                                    roundId: r.roundId,
+                                                  ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      if (r != rows.last)
+                                        const Divider(height: 1),
+                                    ],
                                   ],
                                 ),
                               ),
                             ),
                           );
                         },
-                        loading: () => const SizedBox.shrink(),
-                        error: (e, st) => const SizedBox.shrink(),
                       ),
-                  const SizedBox(height: 14),
-                  FutureBuilder<_QuickStart?>(
-                    future: _loadQuickStart(ref),
-                    builder: (context, snap) {
-                      final qs = snap.data;
-                      if (qs == null) return const SizedBox.shrink();
+                    ],
+                  ),
+                );
+              },
+            ),
 
-                      return Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: scheme.outlineVariant),
+            const SizedBox(height: 16),
+
+            // ===========================
+            // MANAGE
+            // ===========================
+            Builder(
+              builder: (context) {
+                final scheme = Theme.of(context).colorScheme;
+                return Container(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Manage',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Quick Start',
-                                style: TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.flash_on_outlined),
-                                label: Text(qs.label),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => StartRoundScreen(
-                                        initialCourseId: qs.courseId,
-                                        initialTeeBoxId: qs.teeBoxId,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            );
-          }),
-
-          const SizedBox(height: 16),
-
-          // ===========================
-          // REVIEW
-          // ===========================
-          Builder(builder: (context) {
-            final scheme = Theme.of(context).colorScheme;
-            return Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: scheme.outlineVariant),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Review',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 12),
-                  _ActionTile(
-                    icon: Icons.dashboard_outlined,
-                    title: 'Dashboard',
-                    subtitle: 'Trends and averages across rounds',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const DashboardScreen()),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _ActionTile(
-                    icon: Icons.history,
-                    title: 'Saved Rounds',
-                    subtitle: 'Browse completed rounds',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const SavedRoundsScreen()),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(height: 1),
-                  const SizedBox(height: 12),
-                  FutureBuilder<List<_RecentRoundRow>>(
-                    future: _loadRecentCompleted(ref),
-                    builder: (context, snap) {
-                      final rows = snap.data ?? const [];
-                      if (rows.isEmpty) return const SizedBox.shrink();
-
-                      return Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 500),
-                          child: Card(
-                            elevation: 0,
-                            margin: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: scheme.outlineVariant),
-                            ),
-                            child: ExpansionTile(
-                              maintainState: true,
-                              tilePadding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
-                              childrenPadding:
-                                  const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              title: Text(
-                                '\u00A0\u00A0\u00A0Recent Rounds',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  fontStyle: FontStyle.italic,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withOpacity(0.6),
-                                ),
-                              ),
-                              children: [
-                                for (final r in rows) ...[
-                                  ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    title: Text(r.title,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w800)),
-                                    subtitle: Text(r.subtitle),
-                                    trailing: _ScorePill(
-                                      score: r.score,
-                                      toPar: r.toPar,
-                                      fmtToPar: _fmtToPar,
-                                    ),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => RoundSummaryScreen(
-                                              roundId: r.roundId),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  if (r != rows.last) const Divider(height: 1),
-                                ],
-                              ],
-                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      _ActionTile(
+                        icon: Icons.map_outlined,
+                        title: 'Courses',
+                        subtitle: 'Add or edit courses and tees',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CourseListScreen(),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                      const SizedBox(height: 10),
+                      _ActionTile(
+                        icon: Icons.cloud_outlined,
+                        title: 'Backup & Restore',
+                        subtitle: 'Backup, restore, or export data',
+                        onTap: () => _showBackupRestoreSheet(context, ref),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            );
-          }),
+                );
+              },
+            ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-          // ===========================
-          // MANAGE
-          // ===========================
-          Builder(builder: (context) {
-            final scheme = Theme.of(context).colorScheme;
-            return Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: scheme.outlineVariant),
+            Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
+                leading: const Icon(Icons.info_outline),
+                title: const Text(
+                  'About This App',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text(
+                  'Learn more about the app and planned features',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AboutScreen()),
+                  );
+                },
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Manage',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 12),
-                  _ActionTile(
-                    icon: Icons.map_outlined,
-                    title: 'Courses',
-                    subtitle: 'Add or edit courses and tees',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const CourseListScreen()),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _ActionTile(
-                    icon: Icons.cloud_outlined,
-                    title: 'Backup & Restore',
-                    subtitle: 'Export a backup file (restore coming soon)',
-                    onTap: _showBackupRestoreSheet,
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _seedSampleRounds() async {
+    try {
+      final db = ref.read(databaseProvider);
+
+      final courses = await db.getAllCourses();
+      final tees = await db.getAllTeeBoxes();
+      if (courses.isEmpty || tees.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Add at least one Course + Tee Box first.'),
+          ),
+        );
+        return;
+      }
+
+      final course = courses.first;
+      final tee = tees.firstWhere(
+        (t) => t.courseId == course.id,
+        orElse: () => tees.first,
+      );
+
+      final now = DateTime.now();
+      const sampleDays = [2, 7, 14];
+      for (var roundIndex = 0; roundIndex < sampleDays.length; roundIndex++) {
+        final daysAgo = sampleDays[roundIndex];
+        final rid = await db.createRound(courseId: course.id, teeBoxId: tee.id);
+
+        await db.updateRoundMeta(
+          roundId: rid,
+          date: now.subtract(Duration(days: daysAgo)),
+          weather: null,
+          notes: switch (roundIndex) {
+            0 => 'Sample round: good day',
+            1 => 'Sample round: average day',
+            _ => 'Sample round: rough day',
+          },
+        );
+
+        for (var hole = 1; hole <= 18; hole++) {
+          final putts = switch (roundIndex) {
+            0 => (hole % 7 == 0) ? 3 : ((hole % 4 == 0) ? 1 : 2),
+            1 => (hole % 5 == 0) ? 3 : ((hole % 3 == 0) ? 1 : 2),
+            _ => (hole % 4 == 0) ? 3 : ((hole % 6 == 0) ? 1 : 2),
+          };
+
+          final penalties = switch (roundIndex) {
+            0 => (hole % 11 == 0) ? 1 : 0,
+            1 => (hole % 9 == 0) ? 1 : 0,
+            _ => (hole % 6 == 0) ? 1 : ((hole % 13 == 0) ? 2 : 0),
+          };
+
+          final fir = switch (roundIndex) {
+            0 => (hole % 4 == 0) ? 'R' : 'C',
+            1 => (hole % 3 == 0) ? 'C' : ((hole % 2 == 0) ? 'R' : 'L'),
+            _ => (hole % 4 == 0) ? 'L' : ((hole % 5 == 0) ? 'R' : 'C'),
+          };
+
+          final base = switch (roundIndex) {
+            0 => 4, // better round
+            1 => 5, // average round
+            _ => 5, // rougher round
+          };
+
+          final swing = switch (roundIndex) {
+            0 =>
+              (hole % 8 == 0)
+                  ? -1
+                  : ((hole % 6 == 0) ? 1 : ((hole % 5 == 0) ? 0 : -1)),
+            1 =>
+              (hole % 8 == 0)
+                  ? -1
+                  : ((hole % 7 == 0) ? 2 : ((hole % 5 == 0) ? 1 : 0)),
+            _ =>
+              (hole % 9 == 0)
+                  ? 3
+                  : ((hole % 7 == 0) ? 2 : ((hole % 4 == 0) ? 1 : 0)),
+          };
+
+          final score = (base + swing + penalties).clamp(2, 10);
+
+          String? loc;
+          switch ((hole + roundIndex) % 5) {
+            case 0:
+              loc = 'C';
+              break;
+            case 1:
+              loc = 'L';
+              break;
+            case 2:
+              loc = 'R';
+              break;
+            case 3:
+              loc = 'SHORT';
+              break;
+            case 4:
+              loc = 'LONG';
+              break;
+          }
+
+          final approachDistance = switch (roundIndex) {
+            0 =>
+              (hole % 4 == 0)
+                  ? 105
+                  : ((hole % 4 == 1) ? 140 : ((hole % 4 == 2) ? 85 : 160)),
+            1 =>
+              (hole % 4 == 0)
+                  ? 120
+                  : ((hole % 4 == 1) ? 155 : ((hole % 4 == 2) ? 90 : 175)),
+            _ =>
+              (hole % 4 == 0)
+                  ? 135
+                  : ((hole % 4 == 1) ? 170 : ((hole % 4 == 2) ? 110 : 185)),
+          };
+
+          final firstPuttDistance = switch (putts) {
+            1 => roundIndex == 0 ? 8 : 6,
+            2 => roundIndex == 2 ? 24 : 18,
+            _ => roundIndex == 2 ? 42 : 35,
+          };
+
+          await db.upsertHole(
+            roundId: rid,
+            holeNumber: hole,
+            score: score,
+            putts: putts,
+            penalties: penalties,
+            fir: fir,
+            approachLocation: loc,
+            approachDistance: approachDistance,
+            firstPuttDistance: firstPuttDistance,
+          );
+        }
+
+        await db.markRoundCompleted(rid);
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Seeded 3 sample rounds.')));
+
+      ref.invalidate(resumeInfoProvider);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Sample seeding failed: $e')));
+    }
+  }
+
+  Future<void> _exportAllRoundsCsv() async {
+    try {
+      final db = ref.read(databaseProvider);
+
+      final rounds = await db.getCompletedRoundsNewestFirst();
+      if (rounds.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No completed rounds to export.')),
+        );
+        return;
+      }
+
+      final courses = await db.getAllCourses();
+      final tees = await db.getAllTeeBoxes();
+
+      final courseNameById = {for (final c in courses) c.id: c.name};
+      final teeNameById = {for (final t in tees) t.id: t.name};
+      final teeYardageById = {for (final t in tees) t.id: t.yardage};
+
+      final parByCourseHole = <int, Map<int, int>>{};
+      final siByCourseHole = <int, Map<int, int?>>{};
+
+      Future<void> ensureCourseMaps(int courseId) async {
+        if (parByCourseHole.containsKey(courseId)) return;
+        final courseHoles = await db.getCourseHolesForCourse(courseId);
+        parByCourseHole[courseId] = {
+          for (final ch in courseHoles) ch.holeNumber: (ch.par ?? 0),
+        };
+        siByCourseHole[courseId] = {
+          for (final ch in courseHoles) ch.holeNumber: ch.strokeIndex,
+        };
+      }
+
+      String fmtRoundDate(DateTime dt) {
+        final d = dt.toLocal();
+        int hour = d.hour;
+        final am = hour < 12;
+        hour = hour % 12;
+        if (hour == 0) hour = 12;
+        final mm = d.minute.toString().padLeft(2, '0');
+        return '${d.month}/${d.day}/${d.year} $hour:$mm ${am ? 'AM' : 'PM'}';
+      }
+
+      String csvEscape(Object? v) {
+        if (v == null) return '';
+        final s = v.toString();
+        final needsQuotes =
+            s.contains(',') ||
+            s.contains('"') ||
+            s.contains('\n') ||
+            s.contains('\r');
+        if (!needsQuotes) return s;
+        return '"${s.replaceAll('"', '""')}"';
+      }
+
+      final header = <String>[
+        'round_id',
+        'round_date',
+        'course',
+        'tee_box',
+        'hole_number',
+        'par',
+        'yardage',
+        'stroke_index',
+        'score',
+        'to_par',
+        'putts',
+        'penalties',
+        'fir',
+        'approach_location',
+        'approach_distance',
+        'first_putt_distance',
+        'greenside_bunker',
+        'hole_notes',
+      ].join(',');
+
+      final sb = StringBuffer();
+      sb.writeln(header);
+
+      for (final r in rounds) {
+        await ensureCourseMaps(r.courseId);
+
+        final parMap = parByCourseHole[r.courseId] ?? const <int, int>{};
+        final siMap = siByCourseHole[r.courseId] ?? const <int, int?>{};
+
+        T? pickJson<T>(Map<String, dynamic> m, List<String> keys) {
+          for (final k in keys) {
+            final v = m[k];
+            if (v is T) return v;
+            if (v != null) {
+              if (T == int && v is num) return v.toInt() as T;
+              if (T == double && v is num) return v.toDouble() as T;
+              if (T == String) return v.toString() as T;
+            }
+          }
+          return null;
+        }
+
+        final holes = await db.getHolesForRoundOrdered(r.id);
+        for (final h in holes) {
+          final par = parMap[h.holeNumber] ?? 0;
+          final score = h.score;
+          final toPar = (score == null) ? null : (score - par);
+
+          final j = h.toJson();
+          final row = <Object?>[
+            r.id,
+            fmtRoundDate(r.date),
+            courseNameById[r.courseId] ?? '',
+            teeNameById[r.teeBoxId] ?? '',
+            h.holeNumber,
+            par == 0 ? null : par,
+            teeYardageById[r.teeBoxId],
+            siMap[h.holeNumber],
+            score,
+            toPar,
+            pickJson<int>(j, const ['putts']) ?? h.putts,
+            pickJson<int>(j, const ['penalties']) ?? h.penalties,
+            pickJson<String>(j, const ['fir']) ?? h.fir,
+            pickJson<String>(j, const [
+                  'approachLocation',
+                  'approach_location',
+                ]) ??
+                h.approachLocation,
+            pickJson<int>(j, const ['approachDistance', 'approach_distance']) ??
+                h.approachDistance,
+            pickJson<int>(j, const [
+                  'firstPuttDistance',
+                  'first_putt_distance',
+                ]) ??
+                h.firstPuttDistance,
+            pickJson<bool>(j, const ['greensideBunker', 'greenside_bunker']) ??
+                h.greensideBunker,
+            pickJson<String>(j, const ['holeNotes', 'hole_notes']) ??
+                h.holeNotes,
+          ];
+
+          sb.writeln(row.map(csvEscape).join(','));
+        }
+      }
+
+      final tmpDir = await getTemporaryDirectory();
+      final ts = DateTime.now().toLocal().toIso8601String().replaceAll(
+        ':',
+        '-',
+      );
+      final out = File('${tmpDir.path}/golf_scorecard_export_$ts.csv');
+      await out.writeAsString(sb.toString(), flush: true);
+
+      final box = context.findRenderObject() as RenderBox?;
+      final origin = box == null
+          ? const Rect.fromLTWH(0, 0, 1, 1)
+          : (box.localToGlobal(Offset.zero) & box.size);
+
+      await Share.shareXFiles(
+        [XFile(out.path)],
+        text: 'Golf Scorecard export (CSV for Excel).',
+        sharePositionOrigin: origin,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('CSV export failed: $e')));
+    }
   }
 }
 
@@ -696,8 +1239,12 @@ class _QuickStart {
   final int courseId;
   final int teeBoxId;
   final String label;
-  const _QuickStart(
-      {required this.courseId, required this.teeBoxId, required this.label});
+
+  const _QuickStart({
+    required this.courseId,
+    required this.teeBoxId,
+    required this.label,
+  });
 }
 
 class _RecentRoundRow {
@@ -706,6 +1253,7 @@ class _RecentRoundRow {
   final String subtitle;
   final int score;
   final int toPar;
+
   const _RecentRoundRow({
     required this.roundId,
     required this.title,
@@ -770,8 +1318,9 @@ class _ActionTile extends StatelessWidget {
         leading: Icon(icon),
         title: Text(
           title,
-          style: theme.textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w800),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
         ),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),

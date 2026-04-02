@@ -83,6 +83,10 @@ class Holes extends Table {
   IntColumn get approachDistance => integer().nullable()();
   IntColumn get firstPuttDistance => integer().nullable()();
 
+  // NEW (v5): Sand Saves + per-hole notes
+  BoolColumn get greensideBunker => boolean().nullable()();
+  TextColumn get holeNotes => text().nullable()();
+
   @override
   List<Set<Column>> get uniqueKeys => [
         {roundId, holeNumber},
@@ -95,12 +99,21 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
+
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_course_holes_course_hole '
+            'ON course_holes(course_id, hole_number);',
+          );
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_tee_box_holes_tee_hole '
+            'ON tee_box_holes(tee_box_id, hole_number);',
+          );
         },
         onUpgrade: (m, from, to) async {
           // v2 added hole columns
@@ -125,6 +138,69 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(courseHoles);
             await m.createTable(teeBoxHoles);
           }
+
+          // v5 adds greenside bunker flag + per-hole notes
+          if (from < 5) {
+            await m.addColumn(holes, holes.greensideBunker);
+            await m.addColumn(holes, holes.holeNotes);
+          }
+
+          // v6 ensures uniqueness for course_holes and tee_box_holes (older DBs may have duplicates)
+          if (from < 6) {
+            // Remove duplicates, keep the latest row by id for each composite key
+            await customStatement(
+              'DELETE FROM course_holes '
+              'WHERE id NOT IN (SELECT MAX(id) FROM course_holes GROUP BY course_id, hole_number);',
+            );
+            await customStatement(
+              'DELETE FROM tee_box_holes '
+              'WHERE id NOT IN (SELECT MAX(id) FROM tee_box_holes GROUP BY tee_box_id, hole_number);',
+            );
+
+            // Add (or ensure) unique indexes so insertOnConflictUpdate works as a true upsert
+            await customStatement(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_course_holes_course_hole '
+              'ON course_holes(course_id, hole_number);',
+            );
+            await customStatement(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_tee_box_holes_tee_hole '
+              'ON tee_box_holes(tee_box_id, hole_number);',
+            );
+          }
+        },
+        beforeOpen: (details) async {
+          // Always ensure our composite-key uniqueness is enforced.
+          // This is important for users who were already on schemaVersion 5
+          // before we added the explicit unique indexes.
+          await customStatement(
+            'DELETE FROM course_holes '
+            'WHERE id NOT IN (SELECT MAX(id) FROM course_holes GROUP BY course_id, hole_number);',
+          );
+          await customStatement(
+            'DELETE FROM tee_box_holes '
+            'WHERE id NOT IN (SELECT MAX(id) FROM tee_box_holes GROUP BY tee_box_id, hole_number);',
+          );
+
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_course_holes_course_hole '
+            'ON course_holes(course_id, hole_number);',
+          );
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_tee_box_holes_tee_hole '
+            'ON tee_box_holes(tee_box_id, hole_number);',
+          );
+
+          // Repair: Some older test/seed paths may have inserted ISO-8601 strings into
+          // DateTime columns. Drift expects these columns to be stored as unix epoch
+          // seconds (INTEGER). Convert any TEXT values to epoch seconds.
+          //
+          // Example bad value: "2026-02-11T18:11:18.258502"
+          // SQLite will treat this as TEXT and later code may try to parse as int.
+          await customStatement(
+            "UPDATE rounds "
+            "SET date = CAST(strftime('%s', date) AS INTEGER) "
+            "WHERE typeof(date) = 'text' AND date IS NOT NULL;",
+          );
         },
       );
 
@@ -209,6 +285,13 @@ class AppDatabase extends _$AppDatabase {
         .getSingleOrNull();
   }
 
+  // Compatibility aliases (older screens / prior iterations)
+  Future<Round?> getRoundById(int roundId) => getRound(roundId);
+
+  Future<Course?> getCourseById(int courseId) => getCourse(courseId);
+
+  Future<TeeBox?> getTeeBoxById(int teeBoxId) => getTeeBox(teeBoxId);
+
   Future<void> updateRoundMeta({
     required int roundId,
     DateTime? date,
@@ -237,29 +320,14 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  Future<int> createTeeBox({
-    required int courseId,
-    required String name,
-    required int yardage,
-    required double rating,
-    required int slope,
-  }) {
-    return into(teeBoxTable).insert(
-      TeeBoxTableCompanion.insert(
-        courseId: courseId,
-        name: name,
-        yardage: yardage,
-        rating: rating,
-        slope: slope,
-      ),
-    );
-  }
-
   // ---------- Course hole defs ----------
   Future<List<CourseHole>> getCourseHolesForCourse(int courseId) {
     return (select(courseHoles)
           ..where((h) => h.courseId.equals(courseId))
-          ..orderBy([(h) => OrderingTerm(expression: h.holeNumber)]))
+          ..orderBy([
+            (h) => OrderingTerm.asc(h.holeNumber),
+            (h) => OrderingTerm.desc(h.id),
+          ]))
         .get();
   }
 
@@ -269,35 +337,53 @@ class AppDatabase extends _$AppDatabase {
     required int par,
     int? strokeIndex,
   }) async {
-    Value<T> v<T>(T? x) => x == null ? const Value.absent() : Value(x);
+    // Manual upsert so this works even if an older DB was created before
+    // the UNIQUE(courseId, holeNumber) constraint existed.
+    final existing = await (select(courseHoles)
+          ..where((h) =>
+              h.courseId.equals(courseId) & h.holeNumber.equals(holeNumber))
+          ..orderBy([(h) => OrderingTerm.desc(h.id)])
+          ..limit(1))
+        .getSingleOrNull();
 
-    final insert = CourseHolesCompanion(
-      courseId: Value(courseId),
-      holeNumber: Value(holeNumber),
-      par: Value(par),
-      strokeIndex: v(strokeIndex),
-    );
-
-    final update = CourseHolesCompanion(
-      par: Value(par),
-      strokeIndex: v(strokeIndex),
-    );
-
-    await into(courseHoles).insert(
-      insert,
-      onConflict: DoUpdate(
-        (tbl) => update,
-        target: [courseHoles.courseId, courseHoles.holeNumber],
-      ),
-    );
+    if (existing == null) {
+      await into(courseHoles).insert(
+        CourseHolesCompanion(
+          courseId: Value(courseId),
+          holeNumber: Value(holeNumber),
+          par: Value(par),
+          strokeIndex: Value(strokeIndex),
+        ),
+      );
+    } else {
+      await (update(courseHoles)..where((h) => h.id.equals(existing.id))).write(
+        CourseHolesCompanion(
+          par: Value(par),
+          strokeIndex: Value(strokeIndex),
+        ),
+      );
+    }
   }
 
   // ---------- Tee yardages ----------
   Future<List<TeeBoxHole>> getTeeBoxHoles(int teeBoxId) {
     return (select(teeBoxHoles)
           ..where((h) => h.teeBoxId.equals(teeBoxId))
-          ..orderBy([(h) => OrderingTerm(expression: h.holeNumber)]))
+          ..orderBy([
+            (h) => OrderingTerm.asc(h.holeNumber),
+            (h) => OrderingTerm.desc(h.id),
+          ]))
         .get();
+  }
+
+  // Compatibility alias (some screens call this older name)
+  Future<List<TeeBoxHole>> getTeeBoxHolesForTee(int teeBoxId) {
+    return getTeeBoxHoles(teeBoxId);
+  }
+
+  // Compatibility alias (some code uses this name)
+  Future<List<TeeBoxHole>> getTeeBoxHolesForTeeBox(int teeBoxId) {
+    return getTeeBoxHoles(teeBoxId);
   }
 
   Future<void> upsertTeeBoxHole({
@@ -305,25 +391,30 @@ class AppDatabase extends _$AppDatabase {
     required int holeNumber,
     int? yardage,
   }) async {
-    Value<T> v<T>(T? x) => x == null ? const Value.absent() : Value(x);
+    // Manual upsert so this works even if an older DB was created before
+    // the UNIQUE(teeBoxId, holeNumber) constraint existed.
+    final existing = await (select(teeBoxHoles)
+          ..where((h) =>
+              h.teeBoxId.equals(teeBoxId) & h.holeNumber.equals(holeNumber))
+          ..orderBy([(h) => OrderingTerm.desc(h.id)])
+          ..limit(1))
+        .getSingleOrNull();
 
-    final insert = TeeBoxHolesCompanion(
-      teeBoxId: Value(teeBoxId),
-      holeNumber: Value(holeNumber),
-      yardage: v(yardage),
-    );
-
-    final update = TeeBoxHolesCompanion(
-      yardage: v(yardage),
-    );
-
-    await into(teeBoxHoles).insert(
-      insert,
-      onConflict: DoUpdate(
-        (tbl) => update,
-        target: [teeBoxHoles.teeBoxId, teeBoxHoles.holeNumber],
-      ),
-    );
+    if (existing == null) {
+      await into(teeBoxHoles).insert(
+        TeeBoxHolesCompanion(
+          teeBoxId: Value(teeBoxId),
+          holeNumber: Value(holeNumber),
+          yardage: Value(yardage),
+        ),
+      );
+    } else {
+      await (update(teeBoxHoles)..where((h) => h.id.equals(existing.id))).write(
+        TeeBoxHolesCompanion(
+          yardage: Value(yardage),
+        ),
+      );
+    }
   }
 
   // ---------- Holes (round play) ----------
@@ -344,8 +435,10 @@ class AppDatabase extends _$AppDatabase {
     String? approachLocation,
     int? approachDistance,
     int? firstPuttDistance,
+    bool? greensideBunker,
+    String? holeNotes,
   }) async {
-    Value<T> v<T>(T? x) => x == null ? const Value.absent() : Value(x);
+    Value<T?> v<T>(T? x) => Value<T?>(x);
 
     final insert = HolesCompanion(
       roundId: Value(roundId),
@@ -357,9 +450,10 @@ class AppDatabase extends _$AppDatabase {
       approachLocation: v(approachLocation),
       approachDistance: v(approachDistance),
       firstPuttDistance: v(firstPuttDistance),
+      greensideBunker: v(greensideBunker),
+      holeNotes: v(holeNotes),
     );
 
-    // For update, you typically *don’t* want to rewrite roundId/holeNumber
     final update = HolesCompanion(
       score: v(score),
       putts: v(putts),
@@ -368,6 +462,8 @@ class AppDatabase extends _$AppDatabase {
       approachLocation: v(approachLocation),
       approachDistance: v(approachDistance),
       firstPuttDistance: v(firstPuttDistance),
+      greensideBunker: v(greensideBunker),
+      holeNotes: v(holeNotes),
     );
 
     await into(holes).insert(
@@ -483,7 +579,7 @@ class AppDatabase extends _$AppDatabase {
     return (select(holes)..where((h) => h.roundId.equals(roundId))).get();
   }
 
-  // Completed rounds newest-first (since you don’t have a date column)
+  // Completed rounds newest-first
   Future<List<Round>> getCompletedRoundsNewestFirst() {
     return (select(rounds)
           ..where((r) => r.completed.equals(true))

@@ -86,25 +86,25 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
     final name = _courseNameCtrl.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Course name required')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Course name required')));
       return;
     }
 
     if (_courseId == null) {
-      final newId = await db.into(db.courses).insert(
-            CoursesCompanion.insert(name: name),
-          );
+      final newId = await db
+          .into(db.courses)
+          .insert(CoursesCompanion.insert(name: name));
       setState(() => _courseId = newId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Course created.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Course created.')));
     } else {
       await db.updateCourseName(_courseId!, name);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Course updated.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Course updated.')));
     }
   }
 
@@ -137,7 +137,9 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
       return;
     }
 
-    await db.into(db.teeBoxTable).insert(
+    await db
+        .into(db.teeBoxTable)
+        .insert(
           TeeBoxTableCompanion.insert(
             courseId: _courseId!,
             name: teeName,
@@ -151,9 +153,9 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
     if (!mounted) return;
     setState(() => _addNewTeeExpanded = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tee box added.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Tee box added.')));
   }
 
   Future<void> _editTeeBoxDialog(TeeBox tee) async {
@@ -190,8 +192,9 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
             const SizedBox(height: 10),
             TextField(
               controller: ratingCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Rating',
                 border: OutlineInputBorder(),
@@ -240,9 +243,9 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
     slopeCtrl.dispose();
 
     if (name.isEmpty || yardage == null || rating == null || slope == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid tee box values')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invalid tee box values')));
       return;
     }
 
@@ -264,9 +267,9 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
     );
 
     await _refreshTees();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tee box updated.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Tee box updated.')));
   }
 
   Future<void> _deleteTeeBox(TeeBox tee) async {
@@ -308,9 +311,9 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
     }
 
     await _refreshTees();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tee box deleted.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Tee box deleted.')));
   }
 
   @override
@@ -318,9 +321,8 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
     final isNew = widget.courseId == null && _courseId == null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isNew ? 'Add Course' : 'Edit Course'),
-      ),
+      appBar: AppBar(title: Text(isNew ? 'Add Course' : 'Edit Course')),
+
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -332,8 +334,10 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
                     initiallyExpanded: true,
                     title: const Text(
                       'Course',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     children: [
@@ -365,12 +369,14 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => CourseHolesEditorScreen(
-                                      courseId: _courseId!),
+                                    courseId: _courseId!,
+                                  ),
                                 ),
                               );
                             },
-                            child:
-                                const Text('Edit Holes (Par / SI / Yardages)'),
+                            child: const Text(
+                              'Edit Holes (Par / SI / Yardages)',
+                            ),
                           ),
                         ),
                       ],
@@ -390,14 +396,18 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
                         const Text(
                           'Tee Boxes',
                           style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w900),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                         const SizedBox(height: 12),
 
                         const Text(
                           'Existing Tee Boxes',
                           style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w800),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         if (_tees.isEmpty)
@@ -432,10 +442,16 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
                             title: const Text(
                               'Add a New Tee Box',
                               style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w800),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                            childrenPadding:
-                                const EdgeInsets.fromLTRB(0, 0, 0, 16),
+                            childrenPadding: const EdgeInsets.fromLTRB(
+                              0,
+                              0,
+                              0,
+                              16,
+                            ),
                             children: [
                               TextField(
                                 controller: _teeNameCtrl,
@@ -458,7 +474,8 @@ class _CourseEditScreenState extends ConsumerState<CourseEditScreen> {
                                 controller: _ratingCtrl,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
-                                        decimal: true),
+                                      decimal: true,
+                                    ),
                                 decoration: const InputDecoration(
                                   labelText: 'Rating',
                                   border: OutlineInputBorder(),
