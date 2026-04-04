@@ -39,25 +39,25 @@ PODS:
   - SDWebImage/Core (5.21.7)
   - share_plus (0.0.1):
     - Flutter
-  - sqlite3 (3.51.1):
-    - sqlite3/common (= 3.51.1)
-  - sqlite3/common (3.51.1)
-  - sqlite3/dbstatvtab (3.51.1):
+  - sqlite3 (3.52.0):
+    - sqlite3/common (= 3.52.0)
+  - sqlite3/common (3.52.0)
+  - sqlite3/dbstatvtab (3.52.0):
     - sqlite3/common
-  - sqlite3/fts5 (3.51.1):
+  - sqlite3/fts5 (3.52.0):
     - sqlite3/common
-  - sqlite3/math (3.51.1):
+  - sqlite3/math (3.52.0):
     - sqlite3/common
-  - sqlite3/perf-threadsafe (3.51.1):
+  - sqlite3/perf-threadsafe (3.52.0):
     - sqlite3/common
-  - sqlite3/rtree (3.51.1):
+  - sqlite3/rtree (3.52.0):
     - sqlite3/common
-  - sqlite3/session (3.51.1):
+  - sqlite3/session (3.52.0):
     - sqlite3/common
   - sqlite3_flutter_libs (0.0.1):
     - Flutter
     - FlutterMacOS
-    - sqlite3 (~> 3.51.1)
+    - sqlite3 (~> 3.52.0)
     - sqlite3/dbstatvtab
     - sqlite3/fts5
     - sqlite3/math
@@ -65,12 +65,15 @@ PODS:
     - sqlite3/rtree
     - sqlite3/session
   - SwiftyGif (5.4.5)
+  - url_launcher_ios (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - Flutter (from `Flutter`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - sqlite3_flutter_libs (from `.symlinks/plugins/sqlite3_flutter_libs/darwin`)
+  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 SPEC REPOS:
   trunk:
@@ -89,6 +92,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/share_plus/ios"
   sqlite3_flutter_libs:
     :path: ".symlinks/plugins/sqlite3_flutter_libs/darwin"
+  url_launcher_ios:
+    :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
@@ -97,10 +102,11 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
-  sqlite3: 8d708bc63e9f4ce48f0ad9d6269e478c5ced1d9b
-  sqlite3_flutter_libs: d13b8b3003f18f596e542bcb9482d105577eff41
+  sqlite3: a51c07cf16e023d6c48abd5e5791a61a47354921
+  sqlite3_flutter_libs: b3e120efe9a82017e5552a620f696589ed4f62ab
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
+  url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 
-PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
+PODFILE CHECKSUM: ae9e65fc23486119b8e977fd41d9213f251e537a
 
 COCOAPODS: 1.16.2
