@@ -81,7 +81,11 @@ class _RoundSummaryScreenState extends ConsumerState<RoundSummaryScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Round Summary'),
+          title: const FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text('Round Summary', maxLines: 1),
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.share_outlined),
@@ -165,6 +169,18 @@ class _RoundSummaryScreenState extends ConsumerState<RoundSummaryScreen> {
 
             int? scoreOf(int holeNumber) =>
                 data.holeByNumber[holeNumber]?.score;
+
+            int? puttsOf(int holeNumber) =>
+                data.holeByNumber[holeNumber]?.putts;
+
+            String? teeShotOf(int holeNumber) =>
+                data.holeByNumber[holeNumber]?.fir;
+
+            String? approachShotOf(int holeNumber) =>
+                data.holeByNumber[holeNumber]?.approachLocation;
+
+            int? penaltiesOf(int holeNumber) =>
+                data.holeByNumber[holeNumber]?.penalties;
 
             final frontHoles = List<int>.generate(9, (i) => i + 1);
             final backHoles = List<int>.generate(9, (i) => i + 10);
@@ -258,20 +274,25 @@ class _RoundSummaryScreenState extends ConsumerState<RoundSummaryScreen> {
                           '$courseName — $teeName',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
+                        const SizedBox(height: 10),
+                        Row(
                           children: [
-                            Text(
-                              'Score: $totalScore (${fmtToPar(toPar)})',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: scoreColor,
+                            Expanded(
+                              child: _BigStatCard(
+                                label: 'Total',
+                                value: '$totalScore (${fmtToPar(toPar)})',
+                                sub: 'Par $totalPar',
+                                valueColor: scoreColor,
                               ),
                             ),
-                            Text('•'),
-                            Text('Par $totalPar'),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _BigStatCard(
+                                label: 'Front / Back',
+                                value: '$frontScore / $backScore',
+                                sub: 'Par $frontPar / $backPar',
+                              ),
+                            ),
                           ],
                         ),
                         if (r.completed) ...[
@@ -288,14 +309,6 @@ class _RoundSummaryScreenState extends ConsumerState<RoundSummaryScreen> {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              _SummaryChip(
-                                label: 'Front',
-                                value: '$frontScore (${fmtToPar(frontToPar)})',
-                              ),
-                              _SummaryChip(
-                                label: 'Back',
-                                value: '$backScore (${fmtToPar(backToPar)})',
-                              ),
                               _SummaryChip(
                                 label: 'Putts',
                                 value: '$totalPutts',
@@ -403,6 +416,10 @@ class _RoundSummaryScreenState extends ConsumerState<RoundSummaryScreen> {
                   holes: frontHoles,
                   parOf: parOf,
                   scoreOf: scoreOf,
+                  puttsOf: puttsOf,
+                  teeShotOf: teeShotOf,
+                  approachShotOf: approachShotOf,
+                  penaltiesOf: penaltiesOf,
                   onHoleTap: _unlocked
                       ? (holeNumber) async {
                           await Navigator.push(
@@ -428,6 +445,10 @@ class _RoundSummaryScreenState extends ConsumerState<RoundSummaryScreen> {
                   holes: backHoles,
                   parOf: parOf,
                   scoreOf: scoreOf,
+                  puttsOf: puttsOf,
+                  teeShotOf: teeShotOf,
+                  approachShotOf: approachShotOf,
+                  penaltiesOf: penaltiesOf,
                   onHoleTap: _unlocked
                       ? (holeNumber) async {
                           await Navigator.push(
@@ -510,6 +531,10 @@ class _ScorecardCard extends StatelessWidget {
   final List<int> holes;
   final int Function(int holeNumber) parOf;
   final int? Function(int holeNumber) scoreOf;
+  final int? Function(int holeNumber) puttsOf;
+  final String? Function(int holeNumber) teeShotOf;
+  final String? Function(int holeNumber) approachShotOf;
+  final int? Function(int holeNumber) penaltiesOf;
   final void Function(int holeNumber)? onHoleTap;
 
   const _ScorecardCard({
@@ -517,6 +542,10 @@ class _ScorecardCard extends StatelessWidget {
     required this.holes,
     required this.parOf,
     required this.scoreOf,
+    required this.puttsOf,
+    required this.teeShotOf,
+    required this.approachShotOf,
+    required this.penaltiesOf,
     this.onHoleTap,
   });
 
@@ -524,6 +553,8 @@ class _ScorecardCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalPar = holes.fold(0, (s, n) => s + parOf(n));
     final totalScore = holes.fold(0, (s, n) => s + (scoreOf(n) ?? 0));
+    final totalPutts = holes.fold(0, (s, n) => s + (puttsOf(n) ?? 0));
+    final totalPenalties = holes.fold(0, (s, n) => s + (penaltiesOf(n) ?? 0));
 
     return Card(
       child: Padding(
@@ -531,57 +562,47 @@ class _ScorecardCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            const _ScorecardHeaderRow(),
-            const SizedBox(height: 4),
-            for (final n in holes)
-              InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: onHoleTap == null ? null : () => onHoleTap!(n),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Text(n.toString(), softWrap: true),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          parOf(n) == 0 ? '-' : parOf(n).toString(),
-                          softWrap: true,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          scoreOf(n)?.toString() ?? '-',
-                          softWrap: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            const Divider(height: 24),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Text(
-                    'Subtotal (Par $totalPar)',
-                    style: const TextStyle(color: Colors.black54),
-                    softWrap: true,
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                const SizedBox(width: 12),
                 Text(
-                  totalScore.toString(),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  'Par $totalPar  •  $totalScore',
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const _ScorecardHeaderRow(),
+            const Divider(height: 1),
+            for (final n in holes)
+              _ScorecardDataRow(
+                holeNumber: n,
+                par: parOf(n),
+                score: scoreOf(n),
+                putts: puttsOf(n),
+                teeShot: teeShotOf(n),
+                approachShot: approachShotOf(n),
+                penalties: penaltiesOf(n),
+                onTap: onHoleTap == null ? null : () => onHoleTap!(n),
+              ),
+            const Divider(height: 20),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 10,
+              runSpacing: 6,
+              children: [
+                _MiniTotal(label: 'Score', value: '$totalScore'),
+                _MiniTotal(label: 'Par', value: '$totalPar'),
+                _MiniTotal(label: 'Putts', value: '$totalPutts'),
+                _MiniTotal(label: 'Pen', value: '$totalPenalties'),
               ],
             ),
           ],
@@ -596,15 +617,258 @@ class _ScorecardHeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.labelSmall;
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 4),
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Colors.black54,
+          fontWeight: FontWeight.w700,
+        );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.035),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
+        children: [
+          _scoreCell(Text('Hole', style: style), flex: 15),
+          _scoreCell(Text('Par', style: style), flex: 13),
+          _scoreCell(Text('Score', style: style), flex: 16),
+          _scoreCell(Text('Putts', style: style), flex: 14),
+          _scoreCell(Text('Tee', style: style), flex: 14),
+          _scoreCell(Text('GIR', style: style), flex: 14),
+          _scoreCell(Text('Pen', style: style), flex: 14),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScorecardDataRow extends StatelessWidget {
+  final int holeNumber;
+  final int par;
+  final int? score;
+  final int? putts;
+  final String? teeShot;
+  final String? approachShot;
+  final int? penalties;
+  final VoidCallback? onTap;
+
+  const _ScorecardDataRow({
+    required this.holeNumber,
+    required this.par,
+    required this.score,
+    required this.putts,
+    required this.teeShot,
+    required this.approachShot,
+    required this.penalties,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Row(
+      children: [
+        _scoreCell(_plainValue('$holeNumber'), flex: 15),
+        _scoreCell(_plainValue(par == 0 ? '-' : '$par'), flex: 13),
+        _scoreCell(
+          _scoreValue(score, par),
+          flex: 16,
+        ),
+        _scoreCell(_plainValue(putts?.toString() ?? '-'), flex: 14),
+        _scoreCell(_shotBadge(teeShot, isTeeShot: true), flex: 14),
+        _scoreCell(_shotBadge(approachShot, isTeeShot: false), flex: 14),
+        _scoreCell(_penaltyValue(penalties), flex: 14),
+      ],
+    );
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: row,
+      ),
+    );
+  }
+
+  Widget _plainValue(String text) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontWeight: FontWeight.w600),
+    );
+  }
+
+  Widget _scoreValue(int? score, int par) {
+    if (score == null) return _plainValue('-');
+
+    Color? color;
+    if (par > 0) {
+      final toPar = score - par;
+      if (toPar < 0) {
+        color = Colors.green.shade700;
+      } else if (toPar > 0) {
+        color = Colors.red.shade700;
+      }
+    }
+
+    return Text(
+      score.toString(),
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: color,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+
+  Widget _penaltyValue(int? penalties) {
+    if (penalties == null || penalties == 0) {
+      return const Text(
+        '-',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w600),
+      );
+    }
+
+    return Text(
+      penalties.toString(),
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: Colors.red.shade700,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+
+  Widget _shotBadge(String? value, {required bool isTeeShot}) {
+    final label = _shotLabel(value, isTeeShot: isTeeShot);
+    if (label == '-') {
+      return const Text(
+        '-',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w600),
+      );
+    }
+
+    final isCenter = value == 'C';
+    final isMiss =
+        value == 'L' || value == 'R' || value == 'LONG' || value == 'SHORT';
+
+    return Container(
+      width: 28,
+      height: 24,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: isCenter
+            ? Colors.green.shade100
+            : isMiss
+                ? Colors.amber.shade100
+                : Colors.black.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isCenter
+              ? Colors.green.shade300
+              : isMiss
+                  ? Colors.amber.shade300
+                  : Colors.black12,
+        ),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+      ),
+    );
+  }
+
+  String _shotLabel(String? value, {required bool isTeeShot}) {
+    switch (value) {
+      case 'L':
+        return '←';
+      case 'C':
+        return '✓';
+      case 'R':
+        return '→';
+      case 'LONG':
+        return isTeeShot ? '-' : '↑';
+      case 'SHORT':
+        return isTeeShot ? '-' : '↓';
+      default:
+        return '-';
+    }
+  }
+}
+
+Widget _scoreCell(Widget child, {required int flex}) {
+  return Expanded(
+    flex: flex,
+    child: Center(child: child),
+  );
+}
+
+class _MiniTotal extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _MiniTotal({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        text: '$label ',
+        style: const TextStyle(color: Colors.black54),
+        children: [
+          TextSpan(
+            text: value,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BigStatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final String sub;
+  final Color? valueColor;
+
+  const _BigStatCard({
+    required this.label,
+    required this.value,
+    required this.sub,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.black12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 2, child: Text('Hole', style: style, softWrap: true)),
-          Expanded(flex: 2, child: Text('Par', style: style, softWrap: true)),
-          Expanded(flex: 3, child: Text('Score', style: style, softWrap: true)),
+          Text(label, style: const TextStyle(color: Colors.black54)),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: valueColor ?? Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(sub, style: const TextStyle(color: Colors.black54)),
         ],
       ),
     );
@@ -650,8 +914,6 @@ class TeeShotsBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const borderColor = Colors.black26;
-
     Widget cell(String text, {bool bold = false, Color? backgroundColor}) {
       return Expanded(
         child: Container(
@@ -671,7 +933,7 @@ class TeeShotsBox extends StatelessWidget {
     }
 
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: borderColor)),
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -685,30 +947,29 @@ class TeeShotsBox extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
             ),
           ),
-          const Divider(height: 1, thickness: 1, color: borderColor),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              cell('Left', bold: true),
-              Container(width: 1, height: 24, color: borderColor),
+              cell('Left', bold: true, backgroundColor: Colors.yellow.shade100),
+              const SizedBox.shrink(),
               cell(
                 'Center',
                 bold: true,
                 backgroundColor: Colors.green.shade100,
               ),
-              Container(width: 1, height: 24, color: borderColor),
-              cell('Right', bold: true),
+              const SizedBox.shrink(),
+              cell('Right',
+                  bold: true, backgroundColor: Colors.yellow.shade100),
             ],
           ),
-          const Divider(height: 1, thickness: 1, color: borderColor),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              cell(left),
-              Container(width: 1, height: 24, color: borderColor),
+              cell(left, backgroundColor: Colors.yellow.shade100),
+              const SizedBox.shrink(),
               cell(center, backgroundColor: Colors.green.shade100),
-              Container(width: 1, height: 24, color: borderColor),
-              cell(right),
+              const SizedBox.shrink(),
+              cell(right, backgroundColor: Colors.yellow.shade100),
             ],
           ),
         ],
@@ -734,8 +995,6 @@ class ApproachShotsBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const borderColor = Colors.black26;
-
     Widget cell(String text, {bool bold = false, Color? backgroundColor}) {
       return Expanded(
         child: Container(
@@ -754,11 +1013,10 @@ class ApproachShotsBox extends StatelessWidget {
       );
     }
 
-    Widget dividerV([double h = 24]) =>
-        Container(width: 1, height: h, color: borderColor);
+    Widget dividerV([double h = 24]) => const SizedBox.shrink();
 
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: borderColor)),
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -772,27 +1030,30 @@ class ApproachShotsBox extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
             ),
           ),
-          const Divider(height: 1, thickness: 1, color: borderColor),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               cell(''),
               dividerV(),
-              cell('Long', bold: true),
+              cell('Long', bold: true, backgroundColor: Colors.cyan.shade100),
               dividerV(),
               cell(''),
             ],
           ),
-          const Divider(height: 1, thickness: 1, color: borderColor),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [cell(''), dividerV(), cell(long), dividerV(), cell('')],
-          ),
-          const Divider(height: 1, thickness: 1, color: borderColor),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              cell('Left', bold: true),
+              cell(''),
+              dividerV(),
+              cell(long, backgroundColor: Colors.cyan.shade100),
+              dividerV(),
+              cell('')
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              cell('Left', bold: true, backgroundColor: Colors.yellow.shade100),
               dividerV(),
               cell(
                 'Center',
@@ -800,35 +1061,39 @@ class ApproachShotsBox extends StatelessWidget {
                 backgroundColor: Colors.green.shade100,
               ),
               dividerV(),
-              cell('Right', bold: true),
+              cell('Right',
+                  bold: true, backgroundColor: Colors.yellow.shade100),
             ],
           ),
-          const Divider(height: 1, thickness: 1, color: borderColor),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              cell(left),
+              cell(left, backgroundColor: Colors.yellow.shade100),
               dividerV(),
               cell(center, backgroundColor: Colors.green.shade100),
               dividerV(),
-              cell(right),
+              cell(right, backgroundColor: Colors.yellow.shade100),
             ],
           ),
-          const Divider(height: 1, thickness: 1, color: borderColor),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               cell(''),
               dividerV(),
-              cell('Short', bold: true),
+              cell('Short', bold: true, backgroundColor: Colors.cyan.shade100),
               dividerV(),
               cell(''),
             ],
           ),
-          const Divider(height: 1, thickness: 1, color: borderColor),
           Row(
             mainAxisSize: MainAxisSize.min,
-            children: [cell(''), dividerV(), cell(short), dividerV(), cell('')],
+            children: [
+              cell(''),
+              dividerV(),
+              cell(short, backgroundColor: Colors.cyan.shade100),
+              dividerV(),
+              cell('')
+            ],
           ),
         ],
       ),

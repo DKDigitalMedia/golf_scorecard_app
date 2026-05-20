@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../main.dart' show routeObserver;
 import '../providers/database_provider.dart';
@@ -79,9 +80,8 @@ final resumeInfoProvider = FutureProvider.autoDispose<_ResumeInfo?>((
   final teeName = tees.firstWhere((t) => t.id == r.teeBoxId).name;
 
   final lastHole = await db.getLatestHoleNumberForRound(r.id);
-  final resumeHole = lastHole == null
-      ? 1
-      : (lastHole >= 18 ? 18 : lastHole + 1);
+  final resumeHole =
+      lastHole == null ? 1 : (lastHole >= 18 ? 18 : lastHole + 1);
 
   return _ResumeInfo(
     roundId: r.id,
@@ -273,8 +273,7 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
       final pickedName = picked.name;
 
       final lower = pickedName.toLowerCase();
-      final isAllowed =
-          lower.endsWith('.sqlite') ||
+      final isAllowed = lower.endsWith('.sqlite') ||
           lower.endsWith('.db') ||
           lower.endsWith('.sqlite3');
 
@@ -388,9 +387,8 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
 
     if (active.length == 1) {
       final lastHole = await db.getLatestHoleNumberForRound(active.first.id);
-      final resumeHole = lastHole == null
-          ? 1
-          : (lastHole >= 18 ? 18 : lastHole + 1);
+      final resumeHole =
+          lastHole == null ? 1 : (lastHole >= 18 ? 18 : lastHole + 1);
 
       if (!context.mounted) return;
       Navigator.push(
@@ -436,9 +434,8 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
     if (pickedId == null || !context.mounted) return;
 
     final lastHole = await db.getLatestHoleNumberForRound(pickedId);
-    final resumeHole = lastHole == null
-        ? 1
-        : (lastHole >= 18 ? 18 : lastHole + 1);
+    final resumeHole =
+        lastHole == null ? 1 : (lastHole >= 18 ? 18 : lastHole + 1);
 
     Navigator.push(
       context,
@@ -534,7 +531,13 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Yet Another Golf Scorecard')),
+      appBar: AppBar(
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text('Yet Another Golf Scorecard', maxLines: 1),
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -579,9 +582,7 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
                         ),
                       ),
                       const SizedBox(height: 10),
-                      ref
-                          .watch(resumeInfoProvider)
-                          .when(
+                      ref.watch(resumeInfoProvider).when(
                             data: (info) {
                               if (info == null) return const SizedBox.shrink();
 
@@ -812,8 +813,8 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
                                             MaterialPageRoute(
                                               builder: (_) =>
                                                   RoundSummaryScreen(
-                                                    roundId: r.roundId,
-                                                  ),
+                                                roundId: r.roundId,
+                                              ),
                                             ),
                                           );
                                         },
@@ -886,28 +887,115 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
 
             const SizedBox(height: 20),
 
-            Card(
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                leading: const Icon(Icons.info_outline),
-                title: const Text(
-                  'About This App',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                subtitle: const Text(
-                  'Learn more about the app and planned features',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AboutScreen()),
-                  );
-                },
-              ),
+            Builder(
+              builder: (context) {
+                final scheme = Theme.of(context).colorScheme;
+                return Container(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Info',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          leading: const Icon(Icons.info_outline),
+                          title: const Text(
+                            'About This App',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          subtitle: const Text(
+                            'Learn more about the app and planned features',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const AboutScreen()),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          leading: const Icon(Icons.new_releases_outlined),
+                          title: const Text(
+                            'Release Notes',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          subtitle: const Text(
+                            'See what changed in recent versions',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () async {
+                            final uri = Uri.parse(
+                                'https://yags.dkdigital.com/page1.html');
+
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri,
+                                  mode: LaunchMode.externalApplication);
+                            } else {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content:
+                                      Text('Could not open Release Notes.'),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          leading: const Icon(Icons.settings_outlined),
+                          title: const Text(
+                            'Round Settings',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          subtitle: const Text(
+                            'Customize how rounds are tracked and scored',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Round Settings coming soon.'),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -980,18 +1068,15 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
           };
 
           final swing = switch (roundIndex) {
-            0 =>
-              (hole % 8 == 0)
-                  ? -1
-                  : ((hole % 6 == 0) ? 1 : ((hole % 5 == 0) ? 0 : -1)),
-            1 =>
-              (hole % 8 == 0)
-                  ? -1
-                  : ((hole % 7 == 0) ? 2 : ((hole % 5 == 0) ? 1 : 0)),
-            _ =>
-              (hole % 9 == 0)
-                  ? 3
-                  : ((hole % 7 == 0) ? 2 : ((hole % 4 == 0) ? 1 : 0)),
+            0 => (hole % 8 == 0)
+                ? -1
+                : ((hole % 6 == 0) ? 1 : ((hole % 5 == 0) ? 0 : -1)),
+            1 => (hole % 8 == 0)
+                ? -1
+                : ((hole % 7 == 0) ? 2 : ((hole % 5 == 0) ? 1 : 0)),
+            _ => (hole % 9 == 0)
+                ? 3
+                : ((hole % 7 == 0) ? 2 : ((hole % 4 == 0) ? 1 : 0)),
           };
 
           final score = (base + swing + penalties).clamp(2, 10);
@@ -1016,18 +1101,15 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
           }
 
           final approachDistance = switch (roundIndex) {
-            0 =>
-              (hole % 4 == 0)
-                  ? 105
-                  : ((hole % 4 == 1) ? 140 : ((hole % 4 == 2) ? 85 : 160)),
-            1 =>
-              (hole % 4 == 0)
-                  ? 120
-                  : ((hole % 4 == 1) ? 155 : ((hole % 4 == 2) ? 90 : 175)),
-            _ =>
-              (hole % 4 == 0)
-                  ? 135
-                  : ((hole % 4 == 1) ? 170 : ((hole % 4 == 2) ? 110 : 185)),
+            0 => (hole % 4 == 0)
+                ? 105
+                : ((hole % 4 == 1) ? 140 : ((hole % 4 == 2) ? 85 : 160)),
+            1 => (hole % 4 == 0)
+                ? 120
+                : ((hole % 4 == 1) ? 155 : ((hole % 4 == 2) ? 90 : 175)),
+            _ => (hole % 4 == 0)
+                ? 135
+                : ((hole % 4 == 1) ? 170 : ((hole % 4 == 2) ? 110 : 185)),
           };
 
           final firstPuttDistance = switch (putts) {
@@ -1113,8 +1195,7 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
       String csvEscape(Object? v) {
         if (v == null) return '';
         final s = v.toString();
-        final needsQuotes =
-            s.contains(',') ||
+        final needsQuotes = s.contains(',') ||
             s.contains('"') ||
             s.contains('\n') ||
             s.contains('\r');
@@ -1210,9 +1291,9 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
 
       final tmpDir = await getTemporaryDirectory();
       final ts = DateTime.now().toLocal().toIso8601String().replaceAll(
-        ':',
-        '-',
-      );
+            ':',
+            '-',
+          );
       final out = File('${tmpDir.path}/golf_scorecard_export_$ts.csv');
       await out.writeAsString(sb.toString(), flush: true);
 

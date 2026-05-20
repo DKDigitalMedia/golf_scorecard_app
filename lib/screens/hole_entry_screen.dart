@@ -308,9 +308,8 @@ class _HoleEntryScreenState extends ConsumerState<HoleEntryScreen> {
         approachDistance: _approachDistance,
         firstPuttDistance: _firstPuttDistance,
         greensideBunker: _greensideBunker,
-        holeNotes: _notesCtrl.text.trim().isEmpty
-            ? null
-            : _notesCtrl.text.trim(),
+        holeNotes:
+            _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
 
       return true;
@@ -398,18 +397,19 @@ class _HoleEntryScreenState extends ConsumerState<HoleEntryScreen> {
   // ---------------- UI helpers ----------------
 
   Widget _sectionTitle(String text, {EdgeInsetsGeometry? padding}) => Padding(
-    padding: padding ?? const EdgeInsets.only(top: 16, bottom: 6), // +2 top
-    child: Text(
-      text,
-      style:
-          Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            fontSize:
-                (Theme.of(context).textTheme.titleSmall?.fontSize ?? 14) + 2,
-          ) ??
-          const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-    ),
-  );
+        padding: padding ?? const EdgeInsets.only(top: 16, bottom: 6), // +2 top
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize:
+                        (Theme.of(context).textTheme.titleSmall?.fontSize ??
+                                14) +
+                            2,
+                  ) ??
+              const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      );
 
   Widget _chipRow<T>({
     required List<T> values,
@@ -678,27 +678,25 @@ class _HoleEntryScreenState extends ConsumerState<HoleEntryScreen> {
                       children: [
                         Text(
                           'GIR: ${gir == null ? '-' : (gir ? 'Yes' : 'No')}',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: gir == true
-                                    ? Colors.green.shade700
-                                    : Colors.black87,
-                                fontWeight: gir == true
-                                    ? FontWeight.w700
-                                    : null,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: gir == true
+                                        ? Colors.green.shade700
+                                        : Colors.black87,
+                                    fontWeight:
+                                        gir == true ? FontWeight.w700 : null,
+                                  ),
                         ),
                         Text(
                           'Up&Down: ${upDown == null ? '-' : (upDown ? 'Yes' : 'No')}',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: upDown == true
-                                    ? Colors.green.shade700
-                                    : Colors.black87,
-                                fontWeight: upDown == true
-                                    ? FontWeight.w700
-                                    : null,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: upDown == true
+                                        ? Colors.green.shade700
+                                        : Colors.black87,
+                                    fontWeight:
+                                        upDown == true ? FontWeight.w700 : null,
+                                  ),
                         ),
                       ],
                     ),
@@ -727,17 +725,14 @@ class _HoleEntryScreenState extends ConsumerState<HoleEntryScreen> {
                     curve: Curves.easeOut,
                   );
 
-                  final begin = isOutgoing
-                      ? Offset.zero
-                      : Offset(_navDir.toDouble(), 0);
+                  final begin =
+                      isOutgoing ? Offset.zero : Offset(_navDir.toDouble(), 0);
 
-                  final end = isOutgoing
-                      ? Offset(-_navDir.toDouble(), 0)
-                      : Offset.zero;
+                  final end =
+                      isOutgoing ? Offset(-_navDir.toDouble(), 0) : Offset.zero;
 
-                  final slideAnim = isOutgoing
-                      ? ReverseAnimation(curved)
-                      : curved;
+                  final slideAnim =
+                      isOutgoing ? ReverseAnimation(curved) : curved;
 
                   final offset = Tween<Offset>(
                     begin: begin,
@@ -773,7 +768,9 @@ class _HoleEntryScreenState extends ConsumerState<HoleEntryScreen> {
                               ),
                               child: Text(
                                 'Resumed Round · Hole $_holeNumber',
-                                style: Theme.of(context).textTheme.bodySmall
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
                                     ?.copyWith(fontStyle: FontStyle.italic),
                               ),
                             )
@@ -818,9 +815,8 @@ class _HoleEntryScreenState extends ConsumerState<HoleEntryScreen> {
                                   selected: isSelected,
                                   selectedColor: fillColor,
                                   side: BorderSide(
-                                    color: isPar
-                                        ? Colors.black38
-                                        : Colors.black12,
+                                    color:
+                                        isPar ? Colors.black38 : Colors.black12,
                                     width: isPar ? 2 : 1,
                                   ),
                                   onSelected: (_) {
@@ -840,6 +836,115 @@ class _HoleEntryScreenState extends ConsumerState<HoleEntryScreen> {
                                 setState(() => _putts = v);
                                 _scheduleAutoSave();
                               },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    if (par != 3)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _sectionTitle('Tee Shot',
+                                  padding: EdgeInsets.zero),
+                              Center(
+                                child: _chipRow<String>(
+                                  values: const ['L', 'C', 'R'],
+                                  selected: _fir,
+                                  label: (v) => v == 'L'
+                                      ? 'Left'
+                                      : v == 'C'
+                                          ? 'Center'
+                                          : 'Right',
+                                  selectedColor: _firSelectedColor,
+                                  onSelected: (v) {
+                                    setState(() => _fir = v);
+                                    _scheduleAutoSave();
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Center(
+                              child: _sectionTitle(
+                                'Approach',
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Location',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black87,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      ApproachLocationPicker(
+                                        selected: _approachLocation,
+                                        onChanged: (v) {
+                                          setState(() => _approachLocation = v);
+                                          _scheduleAutoSave();
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // ----------------------
+                                // Approach distance is a secondary metric that not all users will care
+                                // about, so hide it behind a toggle for now. Can re-evaluate based on feedback.
+                                // ----------------------
+                                Visibility(
+                                  visible: false,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Distance',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black87,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      _verticalDistanceSlider(
+                                        max: 175,
+                                        value: _approachDistance,
+                                        controller: _approachDistanceCtrl,
+                                        onChanged: (v) => _approachDistance = v,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -895,103 +1000,6 @@ class _HoleEntryScreenState extends ConsumerState<HoleEntryScreen> {
                                         );
                                         _scheduleAutoSave();
                                       },
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _sectionTitle('Tee Shot', padding: EdgeInsets.zero),
-                            _chipRow<String>(
-                              values: const ['L', 'C', 'R'],
-                              selected: _fir,
-                              label: (v) => v == 'L'
-                                  ? 'Left'
-                                  : v == 'C'
-                                  ? 'Center'
-                                  : 'Right',
-                              selectedColor: _firSelectedColor,
-                              onSelected: (v) {
-                                setState(() => _fir = v);
-                                _scheduleAutoSave();
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Center(
-                              child: _sectionTitle(
-                                'Approach',
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Location',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                              color: Colors.black87,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      ApproachLocationPicker(
-                                        selected: _approachLocation,
-                                        onChanged: (v) {
-                                          setState(() => _approachLocation = v);
-                                          _scheduleAutoSave();
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Distance',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.black87,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _verticalDistanceSlider(
-                                      max: 175,
-                                      value: _approachDistance,
-                                      controller: _approachDistanceCtrl,
-                                      onChanged: (v) => _approachDistance = v,
                                     ),
                                   ],
                                 ),

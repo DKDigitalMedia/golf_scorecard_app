@@ -1006,3 +1006,159 @@ class _ParBreakdownCard extends StatelessWidget {
     );
   }
 }
+
+class TeeShotsBox extends StatelessWidget {
+  final String left;
+  final String center;
+  final String right;
+
+  const TeeShotsBox({
+    super.key,
+    required this.left,
+    required this.center,
+    required this.right,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget cell(String text, {bool bold = false, Color? backgroundColor}) {
+      return Expanded(
+        child: Container(
+          alignment: Alignment.center,
+          color: backgroundColor,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget dividerV() => const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: double.infinity,
+            color: Colors.black12,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            alignment: Alignment.center,
+            child: const Text(
+              'Tee Shots',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              cell('Left', bold: true, backgroundColor: Colors.yellow.shade100),
+              dividerV(),
+              cell('Center', bold: true, backgroundColor: Colors.green.shade100),
+              dividerV(),
+              cell('Right', bold: true, backgroundColor: Colors.yellow.shade100),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              cell(left, backgroundColor: Colors.yellow.shade100),
+              dividerV(),
+              cell(center, backgroundColor: Colors.green.shade100),
+              dividerV(),
+              cell(right, backgroundColor: Colors.yellow.shade100),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ApproachShotsBox extends StatelessWidget {
+  final String left;
+  final String center;
+  final String right;
+  final String long;
+  final String short;
+
+  const ApproachShotsBox({
+    super.key,
+    required this.left,
+    required this.center,
+    required this.right,
+    required this.long,
+    required this.short,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget cell(String text, {bool bold = false, Color? backgroundColor}) {
+      return Expanded(
+        child: Container(
+          alignment: Alignment.center,
+          color: backgroundColor,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget dividerV() => const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: double.infinity,
+            color: Colors.black12,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            alignment: Alignment.center,
+            child: const Text(
+              'Approach Shots',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+            ),
+          ),
+          Row(children: [cell(''), dividerV(), cell('Long', bold: true, backgroundColor: Colors.cyan.shade100), dividerV(), cell('')]),
+          Row(children: [cell(''), dividerV(), cell(long, backgroundColor: Colors.cyan.shade100), dividerV(), cell('')]),
+          Row(
+            children: [
+              cell('Left', bold: true, backgroundColor: Colors.yellow.shade100),
+              dividerV(),
+              cell('Center', bold: true, backgroundColor: Colors.green.shade100),
+              dividerV(),
+              cell('Right', bold: true, backgroundColor: Colors.yellow.shade100),
+            ],
+          ),
+          Row(
+            children: [
+              cell(left, backgroundColor: Colors.yellow.shade100),
+              dividerV(),
+              cell(center, backgroundColor: Colors.green.shade100),
+              dividerV(),
+              cell(right, backgroundColor: Colors.yellow.shade100),
+            ],
+          ),
+          Row(children: [cell(''), dividerV(), cell('Short', bold: true, backgroundColor: Colors.cyan.shade100), dividerV(), cell('')]),
+          Row(children: [cell(''), dividerV(), cell(short, backgroundColor: Colors.cyan.shade100), dividerV(), cell('')]),
+        ],
+      ),
+    );
+  }
+}
