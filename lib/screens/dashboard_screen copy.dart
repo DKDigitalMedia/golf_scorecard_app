@@ -37,9 +37,7 @@ class DashboardScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _StatsCard(data.stats, data.scoreTrend),
-              const SizedBox(height: 16),
-              _HandicapIndexCard(data.handicapIndex),
+              _StatsCard(data.stats),
               const SizedBox(height: 12),
               if (data.rounds.length >= 3) ...[
                 _RecentFormCard(data.recentForm),
@@ -113,7 +111,7 @@ class DashboardScreen extends ConsumerWidget {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              ...data.rounds.take(3).map((r) {
+              ...data.rounds.map((r) {
                 final courseName = data.courseNameById[r.courseId] ?? 'Course';
                 final teeName = data.teeNameById[r.teeBoxId] ?? 'Tee';
 
@@ -389,12 +387,13 @@ class DashboardScreen extends ConsumerWidget {
       last3AvgScore: recentRoundScores.isEmpty
           ? null
           : (recentRoundScores.reduce((a, b) => a + b) /
-              recentRoundScores.length),
+                recentRoundScores.length),
       firPct: pct(firHits, firOpps),
       girPct: pct(girHits, girOpps),
       avgPuttsPerHole: puttHoleCount == 0 ? null : (totalPutts / puttHoleCount),
-      avgPenaltiesPerRound:
-          roundsCount == 0 ? null : (totalPenalties / roundsCount),
+      avgPenaltiesPerRound: roundsCount == 0
+          ? null
+          : (totalPenalties / roundsCount),
       sandSavePct: pct(sandSaves, sandOpps),
       firLeftPct: pct(firLeft, firOpps),
       firCenterPct: pct(firCenter, firOpps),
@@ -405,15 +404,6 @@ class DashboardScreen extends ConsumerWidget {
       approachLongPct: pct(approachLong, approachOpps),
       approachShortPct: pct(approachShort, approachOpps),
     );
-
-    final handicapIndex = await db.computeSimpleHandicapIndex();
-    final scoreTrend = rounds
-        .take(10)
-        .map((r) => totalScoreByRoundId[r.id] ?? 0)
-        .where((score) => score > 0)
-        .toList()
-        .reversed
-        .toList();
 
     double? pctByPar(int par, Map<int, int> hits, Map<int, int> opps) {
       final o = opps[par] ?? 0;
@@ -477,8 +467,6 @@ class DashboardScreen extends ConsumerWidget {
     return _DashboardData(
       rounds: rounds,
       stats: stats,
-      handicapIndex: handicapIndex,
-      scoreTrend: scoreTrend,
       parBreakdown: parBreakdown,
       courseNameById: courseNameById,
       teeNameById: teeNameById,
@@ -494,8 +482,6 @@ class DashboardScreen extends ConsumerWidget {
 class _DashboardData {
   final List<Round> rounds;
   final _DashboardStats stats;
-  final double? handicapIndex;
-  final List<int> scoreTrend;
   final _ParBreakdown parBreakdown;
   final _RecentForm recentForm;
 
@@ -511,8 +497,6 @@ class _DashboardData {
   _DashboardData({
     required this.rounds,
     required this.stats,
-    required this.handicapIndex,
-    required this.scoreTrend,
     required this.parBreakdown,
     required this.courseNameById,
     required this.teeNameById,
@@ -524,19 +508,17 @@ class _DashboardData {
   });
 
   factory _DashboardData.empty() => _DashboardData(
-        rounds: const [],
-        stats: _DashboardStats.empty(),
-        handicapIndex: null,
-        scoreTrend: const [],
-        parBreakdown: _ParBreakdown.empty(),
-        recentForm: _RecentForm.empty(),
-        courseNameById: const {},
-        teeNameById: const {},
-        totalScoreByRoundId: const {},
-        totalParByRoundId: const {},
-        totalPuttsByRoundId: const {},
-        girPctByRoundId: const {},
-      );
+    rounds: const [],
+    stats: _DashboardStats.empty(),
+    parBreakdown: _ParBreakdown.empty(),
+    recentForm: _RecentForm.empty(),
+    courseNameById: const {},
+    teeNameById: const {},
+    totalScoreByRoundId: const {},
+    totalParByRoundId: const {},
+    totalPuttsByRoundId: const {},
+    girPctByRoundId: const {},
+  );
 }
 
 class _RecentForm {
@@ -557,13 +539,13 @@ class _RecentForm {
   });
 
   factory _RecentForm.empty() => const _RecentForm(
-        last3Avg: null,
-        last5Avg: null,
-        previous3Avg: null,
-        bestRecent: null,
-        worstRecent: null,
-        trend: null,
-      );
+    last3Avg: null,
+    last5Avg: null,
+    previous3Avg: null,
+    bestRecent: null,
+    worstRecent: null,
+    trend: null,
+  );
 }
 
 class _DashboardStats {
@@ -610,217 +592,32 @@ class _DashboardStats {
   });
 
   factory _DashboardStats.empty() => _DashboardStats(
-        roundsCount: 0,
-        avgScore: null,
-        avgToPar: null,
-        bestScore: null,
-        bestToPar: null,
-        last3AvgScore: null,
-        firPct: null,
-        girPct: null,
-        avgPuttsPerHole: null,
-        avgPenaltiesPerRound: null,
-        sandSavePct: null,
-        firLeftPct: null,
-        firCenterPct: null,
-        firRightPct: null,
-        approachLeftPct: null,
-        approachCenterPct: null,
-        approachRightPct: null,
-        approachLongPct: null,
-        approachShortPct: null,
-      );
-}
-
-class _ScoreTrendMiniChart extends StatelessWidget {
-  final List<int> scores;
-
-  const _ScoreTrendMiniChart(this.scores);
-
-  @override
-  Widget build(BuildContext context) {
-    if (scores.length < 2) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.03),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Text(
-          'Score Trend: not enough completed rounds yet',
-          style: TextStyle(color: Colors.black54),
-        ),
-      );
-    }
-
-    return Container(
-      height: 92,
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(36, 8, 10, 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.03),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: CustomPaint(
-        painter: _ScoreTrendPainter(scores),
-        child: const SizedBox.expand(),
-      ),
-    );
-  }
-}
-
-class _ScoreTrendPainter extends CustomPainter {
-  final List<int> scores;
-
-  _ScoreTrendPainter(this.scores);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final minScore = scores.reduce((a, b) => a < b ? a : b).toDouble();
-    final maxScore = scores.reduce((a, b) => a > b ? a : b).toDouble();
-    final range = (maxScore - minScore) == 0 ? 1.0 : (maxScore - minScore);
-
-    final axisPaint = Paint()
-      ..color = Colors.black12
-      ..strokeWidth = 1;
-
-    final linePaint = Paint()
-      ..color = Colors.green.shade700
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final pointPaint = Paint()
-      ..color = Colors.green.shade700
-      ..style = PaintingStyle.fill;
-
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
-
-    final chartTop = 6.0;
-    final chartBottom = size.height - 20;
-    final chartHeight = chartBottom - chartTop;
-
-    canvas.drawLine(
-      Offset(0, chartTop),
-      Offset(0, chartBottom),
-      axisPaint,
-    );
-
-    final labelPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
-
-    void drawAxisLabel(String label, double y) {
-      labelPainter.text = TextSpan(
-        text: label,
-        style: const TextStyle(
-          color: Colors.black54,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      );
-      labelPainter.layout();
-      labelPainter.paint(
-        canvas,
-        Offset(
-          -labelPainter.width - 4,
-          y - labelPainter.height / 2,
-        ),
-      );
-    }
-
-    drawAxisLabel(maxScore.toStringAsFixed(0), chartTop);
-    drawAxisLabel(minScore.toStringAsFixed(0), chartBottom);
-
-    Offset pointFor(int index, int score) {
-      final x = scores.length == 1
-          ? size.width / 2
-          : (index / (scores.length - 1)) * size.width;
-      final normalized = (score - minScore) / range;
-      final y = chartBottom - (normalized * chartHeight);
-      return Offset(x, y);
-    }
-
-    final path = Path();
-    for (var i = 0; i < scores.length; i++) {
-      final p = pointFor(i, scores[i]);
-      if (i == 0) {
-        path.moveTo(p.dx, p.dy);
-      } else {
-        path.lineTo(p.dx, p.dy);
-      }
-    }
-
-    canvas.drawPath(path, linePaint);
-
-    for (var i = 0; i < scores.length; i++) {
-      final p = pointFor(i, scores[i]);
-      canvas.drawCircle(p, 3.5, pointPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ScoreTrendPainter oldDelegate) {
-    return oldDelegate.scores != scores;
-  }
-}
-
-class _HandicapIndexCard extends StatelessWidget {
-  final double? handicapIndex;
-
-  const _HandicapIndexCard(this.handicapIndex);
-
-  @override
-  Widget build(BuildContext context) {
-    final value =
-        handicapIndex == null ? '-' : handicapIndex!.toStringAsFixed(1);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            const Icon(Icons.trending_down, size: 28),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Handicap Index',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Simple estimate from completed rounds',
-                    style: TextStyle(color: Colors.black54, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    roundsCount: 0,
+    avgScore: null,
+    avgToPar: null,
+    bestScore: null,
+    bestToPar: null,
+    last3AvgScore: null,
+    firPct: null,
+    girPct: null,
+    avgPuttsPerHole: null,
+    avgPenaltiesPerRound: null,
+    sandSavePct: null,
+    firLeftPct: null,
+    firCenterPct: null,
+    firRightPct: null,
+    approachLeftPct: null,
+    approachCenterPct: null,
+    approachRightPct: null,
+    approachLongPct: null,
+    approachShortPct: null,
+  );
 }
 
 class _StatsCard extends StatelessWidget {
   final _DashboardStats s;
-  final List<int> scoreTrend;
 
-  const _StatsCard(this.s, this.scoreTrend);
+  const _StatsCard(this.s);
 
   String _fmt(double? v, {int digits = 1}) =>
       v == null ? '-' : v.toStringAsFixed(digits);
@@ -845,8 +642,6 @@ class _StatsCard extends StatelessWidget {
               'Stats Overview (${s.roundsCount} completed rounds)',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 12),
-            _ScoreTrendMiniChart(scoreTrend),
             const SizedBox(height: 16),
             _section('Scoring', [
               _pill('Avg Score', _fmt(s.avgScore)),
@@ -1029,13 +824,13 @@ class _ParLine {
   });
 
   factory _ParLine.empty() => const _ParLine(
-        holes: 0,
-        avgScore: null,
-        avgToPar: null,
-        girPct: null,
-        avgPutts: null,
-        avgPenalties: null,
-      );
+    holes: 0,
+    avgScore: null,
+    avgToPar: null,
+    girPct: null,
+    avgPutts: null,
+    avgPenalties: null,
+  );
 }
 
 class _ParBreakdown {
@@ -1050,10 +845,10 @@ class _ParBreakdown {
   });
 
   factory _ParBreakdown.empty() => _ParBreakdown(
-        par3: _ParLine.empty(),
-        par4: _ParLine.empty(),
-        par5: _ParLine.empty(),
-      );
+    par3: _ParLine.empty(),
+    par4: _ParLine.empty(),
+    par5: _ParLine.empty(),
+  );
 }
 
 class _ParBreakdownCard extends StatelessWidget {
@@ -1186,17 +981,17 @@ class _ParBreakdownCard extends StatelessWidget {
     bool boldValues = false,
   }) {
     Widget cell(String v, {Color? color}) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Center(
-            child: Text(
-              v,
-              style: TextStyle(
-                color: color,
-                fontWeight: boldValues ? FontWeight.w700 : null,
-              ),
-            ),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Center(
+        child: Text(
+          v,
+          style: TextStyle(
+            color: color,
+            fontWeight: boldValues ? FontWeight.w700 : null,
           ),
-        );
+        ),
+      ),
+    );
 
     return TableRow(
       children: [
@@ -1266,11 +1061,9 @@ class TeeShotsBox extends StatelessWidget {
             children: [
               cell('Left', bold: true, backgroundColor: Colors.yellow.shade100),
               dividerV(),
-              cell('Center',
-                  bold: true, backgroundColor: Colors.green.shade200),
+              cell('Center', bold: true, backgroundColor: Colors.green.shade100),
               dividerV(),
-              cell('Right',
-                  bold: true, backgroundColor: Colors.yellow.shade100),
+              cell('Right', bold: true, backgroundColor: Colors.yellow.shade100),
             ],
           ),
           Row(
@@ -1278,7 +1071,7 @@ class TeeShotsBox extends StatelessWidget {
             children: [
               cell(left, backgroundColor: Colors.yellow.shade100),
               dividerV(),
-              cell(center, backgroundColor: Colors.green.shade200),
+              cell(center, backgroundColor: Colors.green.shade100),
               dividerV(),
               cell(right, backgroundColor: Colors.yellow.shade100),
             ],
@@ -1342,54 +1135,28 @@ class ApproachShotsBox extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
             ),
           ),
-          Row(children: [
-            cell(''),
-            dividerV(),
-            cell('Long', bold: true, backgroundColor: Colors.cyan.shade100),
-            dividerV(),
-            cell('')
-          ]),
-          Row(children: [
-            cell(''),
-            dividerV(),
-            cell(long, backgroundColor: Colors.cyan.shade100),
-            dividerV(),
-            cell('')
-          ]),
+          Row(children: [cell(''), dividerV(), cell('Long', bold: true, backgroundColor: Colors.cyan.shade100), dividerV(), cell('')]),
+          Row(children: [cell(''), dividerV(), cell(long, backgroundColor: Colors.cyan.shade100), dividerV(), cell('')]),
           Row(
             children: [
               cell('Left', bold: true, backgroundColor: Colors.yellow.shade100),
               dividerV(),
-              cell('Center',
-                  bold: true, backgroundColor: Colors.green.shade200),
+              cell('Center', bold: true, backgroundColor: Colors.green.shade100),
               dividerV(),
-              cell('Right',
-                  bold: true, backgroundColor: Colors.yellow.shade100),
+              cell('Right', bold: true, backgroundColor: Colors.yellow.shade100),
             ],
           ),
           Row(
             children: [
               cell(left, backgroundColor: Colors.yellow.shade100),
               dividerV(),
-              cell(center, backgroundColor: Colors.green.shade200),
+              cell(center, backgroundColor: Colors.green.shade100),
               dividerV(),
               cell(right, backgroundColor: Colors.yellow.shade100),
             ],
           ),
-          Row(children: [
-            cell(''),
-            dividerV(),
-            cell('Short', bold: true, backgroundColor: Colors.cyan.shade100),
-            dividerV(),
-            cell('')
-          ]),
-          Row(children: [
-            cell(''),
-            dividerV(),
-            cell(short, backgroundColor: Colors.cyan.shade100),
-            dividerV(),
-            cell('')
-          ]),
+          Row(children: [cell(''), dividerV(), cell('Short', bold: true, backgroundColor: Colors.cyan.shade100), dividerV(), cell('')]),
+          Row(children: [cell(''), dividerV(), cell(short, backgroundColor: Colors.cyan.shade100), dividerV(), cell('')]),
         ],
       ),
     );

@@ -955,7 +955,7 @@ class TeeShotsBox extends StatelessWidget {
               cell(
                 'Center',
                 bold: true,
-                backgroundColor: Colors.green.shade100,
+                backgroundColor: Colors.green.shade200,
               ),
               const SizedBox.shrink(),
               cell('Right',
@@ -967,7 +967,7 @@ class TeeShotsBox extends StatelessWidget {
             children: [
               cell(left, backgroundColor: Colors.yellow.shade100),
               const SizedBox.shrink(),
-              cell(center, backgroundColor: Colors.green.shade100),
+              cell(center, backgroundColor: Colors.green.shade200),
               const SizedBox.shrink(),
               cell(right, backgroundColor: Colors.yellow.shade100),
             ],
@@ -1058,7 +1058,7 @@ class ApproachShotsBox extends StatelessWidget {
               cell(
                 'Center',
                 bold: true,
-                backgroundColor: Colors.green.shade100,
+                backgroundColor: Colors.green.shade200,
               ),
               dividerV(),
               cell('Right',
@@ -1070,7 +1070,7 @@ class ApproachShotsBox extends StatelessWidget {
             children: [
               cell(left, backgroundColor: Colors.yellow.shade100),
               dividerV(),
-              cell(center, backgroundColor: Colors.green.shade100),
+              cell(center, backgroundColor: Colors.green.shade200),
               dividerV(),
               cell(right, backgroundColor: Colors.yellow.shade100),
             ],

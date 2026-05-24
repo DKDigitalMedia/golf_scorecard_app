@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart';
+
+const String appVersion = 'v0.7.0';
+const String buildDate = '2026-05-22';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -48,6 +52,32 @@ class AboutScreen extends StatelessWidget {
                       const Text(
                         'A fast, simple way to track your golf rounds on the course.',
                       ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Version: $appVersion',
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        'Build Date: $buildDate',
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (kDebugMode) ...[
+                        const SizedBox(height: 6),
+                        const Text(
+                          'DEBUG BUILD',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
